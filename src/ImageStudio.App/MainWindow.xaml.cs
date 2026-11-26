@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
     List<string> _imageModels = new();
     List<string> _chatModels = new();
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _proxyTimer;
+    readonly AppUpdater _updater = new();
 
     public MainWindow()
     {
@@ -70,6 +71,57 @@ public sealed partial class MainWindow : Window
         _proxyTimer.Tick += async (_, _) => await CheckProxyAsync(false);
         _proxyTimer.Start();
         _ = CheckProxyAsync(true);
+        if (_s.AutoCheckUpdates) _ = CheckForUpdateAsync(silent: true);
+    }
+
+    // ---------------- auto-update ----------------
+
+    /// <summary>Checks GitHub Releases; when a newer version exists, offers it in the banner.</summary>
+    async Task<string> CheckForUpdateAsync(bool silent)
+    {
+        if (!_updater.IsInstalled)
+            return "개발 빌드라 자동 업데이트를 쓸 수 없습니다 (설치 파일로 설치한 앱만 업데이트됨).";
+        try
+        {
+            var ver = await _updater.CheckAsync();
+            if (ver == null) return $"최신 버전입니다 ({_updater.CurrentVersion}).";
+            Banner.Title = $"새 버전 {ver} 이(가) 있습니다";
+            Banner.Message = $"현재 {_updater.CurrentVersion}. 업데이트하면 앱이 다시 시작됩니다 (대화와 설정은 유지).";
+            Banner.Severity = InfoBarSeverity.Informational;
+            var btn = new Button { Content = "업데이트 후 재시작" };
+            btn.Click += async (_, _) => await ApplyUpdateAsync(btn);
+            Banner.ActionButton = btn;
+            Banner.IsOpen = true;
+            return $"새 버전 {ver} 이(가) 있습니다.";
+        }
+        catch (Exception ex)
+        {
+            var msg = "업데이트 확인 실패: " + ex.Message;
+            if (!silent) ShowBanner("업데이트 확인 실패", ex.Message, InfoBarSeverity.Warning);
+            return msg;
+        }
+    }
+
+    async Task ApplyUpdateAsync(Button btn)
+    {
+        if (_cts != null)
+        {
+            ShowBanner("생성 중에는 업데이트할 수 없습니다", "작업이 끝난 뒤 다시 눌러 주세요.", InfoBarSeverity.Warning);
+            return;
+        }
+        btn.IsEnabled = false;
+        try
+        {
+            await _updater.DownloadAsync(p => DispatcherQueue.TryEnqueue(() => btn.Content = $"다운로드 {p}%"));
+            SaveSettings();
+            _updater.ApplyAndRestart();
+        }
+        catch (Exception ex)
+        {
+            btn.IsEnabled = true;
+            btn.Content = "업데이트 후 재시작";
+            ShowBanner("업데이트 실패", ex.Message, InfoBarSeverity.Error);
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -132,6 +184,7 @@ public sealed partial class MainWindow : Window
 
     void ShowBanner(string title, string message, InfoBarSeverity sev)
     {
+        Banner.ActionButton = null;
         Banner.Title = title;
         Banner.Message = message;
         Banner.Severity = sev;

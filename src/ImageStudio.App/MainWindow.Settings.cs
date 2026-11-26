@@ -326,6 +326,17 @@ public sealed partial class MainWindow
         ctx.Children.Add(new TextBlock { Text = "상단 컨텍스트 막대와 자동 압축 기준에 사용됩니다. 이미지 1장 ≈ 1,100–2,000 토큰으로 추정합니다.", Style = Res("SubText") });
         Card(p, "컨텍스트", ctx);
 
+        // Updates
+        var upd = new StackPanel();
+        var updStatus = new TextBlock { Style = Res("SubText"), Text = _updater.IsInstalled ? "" : "개발 빌드 (설치 파일로 설치하면 자동 업데이트 사용 가능)" };
+        Row(upd, "현재 버전", new TextBlock { Text = _updater.CurrentVersion, Style = Res("RowLabel") });
+        Row(upd, "시작할 때 업데이트 확인", Toggle(_s.AutoCheckUpdates, v => { _s.AutoCheckUpdates = v; SaveSettings(); }));
+        var checkBtn = new Button { Content = "지금 확인" };
+        checkBtn.Click += async (_, _) => { checkBtn.IsEnabled = false; updStatus.Text = "확인 중…"; updStatus.Text = await CheckForUpdateAsync(silent: false); checkBtn.IsEnabled = true; };
+        Row(upd, "GitHub 릴리즈에서 새 버전 확인", checkBtn);
+        upd.Children.Add(updStatus);
+        Card(p, "업데이트", upd);
+
         // App
         var app = new StackPanel();
         Row(app, "테마", Combo(new[] { "시스템", "라이트", "다크" }, Array.IndexOf(new[] { "system", "light", "dark" }, _s.Theme),

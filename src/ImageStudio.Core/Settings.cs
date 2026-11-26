@@ -65,6 +65,8 @@ public sealed class AppSettings
     /// <summary>Auto /compact when the estimated context reaches this percentage (0 = off).</summary>
     public int AutoCompactPercent { get; set; } = 80;
 
+    public bool AutoCheckUpdates { get; set; } = true;
+
     public bool SessionListCollapsed { get; set; }
     public bool SettingsPanelCollapsed { get; set; }
     public string? LastConversationId { get; set; }
