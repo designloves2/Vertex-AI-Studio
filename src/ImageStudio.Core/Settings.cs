@@ -123,8 +123,13 @@ public static class ModelCatalog
         ["gemini-3-pro-image-preview"] = "Nano Banana Pro (preview)",
         ["gemini-3.1-flash-image"] = "Nano Banana 2",
         ["gemini-3.1-flash-image-preview"] = "Nano Banana 2 (preview)",
+        ["gemini-3.1-flash-lite-image"] = "Nano Banana 2 lite",
+        ["gemini-3.1-flash-lite-image-preview"] = "Nano Banana 2 lite (preview)",
     };
 
     public static string DisplayName(string id) => Friendly.TryGetValue(id, out var n) ? n : id;
+
+    /// <summary>"Nano Banana 2 lite (gemini-3.1-flash-lite-image)" — friendly name plus the model id.</summary>
+    public static string Label(string id) => Friendly.TryGetValue(id, out var n) ? $"{n} ({id})" : id;
     public static bool IsImagen(string id) => id.StartsWith("imagen", StringComparison.OrdinalIgnoreCase);
 }

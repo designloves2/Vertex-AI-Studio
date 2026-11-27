@@ -329,7 +329,7 @@ public sealed partial class MainWindow
         var models = _imageModels.ToList();
         if (!models.Contains(g.Model)) models.Insert(0, g.Model);
         ChipMenu("모델", ModelCatalog.DisplayName(g.Model),
-            models.Select(m => (ModelCatalog.DisplayName(m) == m ? m : $"{ModelCatalog.DisplayName(m)}  ({m})", m == g.Model, (Action)(() => g.Model = m))));
+            models.Select(m => (ModelCatalog.Label(m), m == g.Model, (Action)(() => g.Model = m))));
 
         ChipMenu("비율", g.AspectRatio == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : g.AspectRatio,
             GenerationSettings.AspectRatios.Select(r => (r == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : r, r == g.AspectRatio, (Action)(() => g.AspectRatio = r))));

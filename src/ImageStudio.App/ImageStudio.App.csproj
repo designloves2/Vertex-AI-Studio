@@ -6,7 +6,7 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>ImageStudio.App</RootNamespace>
     <AssemblyName>VertexAIStudio</AssemblyName>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>

@@ -171,3 +171,13 @@ public class GoogleSetupTests
         Assert.Equal("http://127.0.0.1:3000", s.EffectiveProxyUrl);
     }
 }
+
+public class ModelCatalogTests
+{
+    [Theory]
+    [InlineData("gemini-3.1-flash-lite-image", "Nano Banana 2 lite (gemini-3.1-flash-lite-image)")]
+    [InlineData("gemini-nano-banana-2.1", "Nano Banana 2.1 (gemini-nano-banana-2.1)")]
+    [InlineData("gemini-3-pro-image", "Nano Banana Pro (gemini-3-pro-image)")]
+    [InlineData("imagen-4.0-generate-001", "imagen-4.0-generate-001")]
+    public void LabelShowsFriendlyNameAndId(string id, string expected) => Assert.Equal(expected, ModelCatalog.Label(id));
+}

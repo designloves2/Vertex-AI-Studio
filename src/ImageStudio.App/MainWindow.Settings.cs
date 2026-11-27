@@ -156,7 +156,7 @@ public sealed partial class MainWindow
         foreach (var id in ids)
         {
             var name = ModelCatalog.DisplayName(id);
-            var item = new ComboBoxItem { Content = name == id ? id : $"{name}", Tag = id };
+            var item = new ComboBoxItem { Content = ModelCatalog.Label(id), Tag = id };
             ToolTipService.SetToolTip(item, id);
             _modelCombo.Items.Add(item);
             if (id == _s.Generation.Model) _modelCombo.SelectedItem = item;
