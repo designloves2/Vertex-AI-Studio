@@ -281,31 +281,7 @@ public sealed partial class MainWindow
         var p = SettingsPagePanel;
         while (p.Children.Count > 1) p.Children.RemoveAt(1);
 
-        // Connection
-        var conn = new StackPanel();
-        var url = new TextBox { Text = _s.ProxyUrl, MinWidth = 280 };
-        var status = new TextBlock { Style = Res("SubText"), VerticalAlignment = VerticalAlignment.Center };
-        var test = new Button { Content = "연결 테스트" };
-        test.Click += async (_, _) =>
-        {
-            ApplyProxyUrl(url.Text);
-            status.Text = "확인 중…";
-            try
-            {
-                var models = await _client.ListModelsAsync("image", refresh: true);
-                status.Text = $"연결됨 · 이미지 모델 {models.Count}개";
-                await CheckProxyAsync(true);
-            }
-            catch (ProxyException ex) { status.Text = ex.UserMessage; }
-        };
-        url.LostFocus += (_, _) => ApplyProxyUrl(url.Text);
-        var urlRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        urlRow.Children.Add(url);
-        urlRow.Children.Add(test);
-        Row(conn, "프록시 주소", urlRow);
-        conn.Children.Add(status);
-        Row(conn, "요청 타임아웃 (초)", Number(_s.TimeoutSeconds, 60, 1200, v => { _s.TimeoutSeconds = v; ApplyProxyUrl(_s.ProxyUrl, force: true); }));
-        Card(p, "연결", conn);
+        BuildProxyCard(p);
 
         // LLMs
         var llm = new StackPanel();
@@ -371,8 +347,14 @@ public sealed partial class MainWindow
         if (!Uri.TryCreate(url, UriKind.Absolute, out _)) return;
         if (!force && url == _s.ProxyUrl) return;
         _s.ProxyUrl = url;
+        RecreateClient();
+    }
+
+    /// <summary>New HttpClient for the current proxy URL / timeout (embedded or external).</summary>
+    void RecreateClient()
+    {
         var old = _client;
-        _client = new ProxyClient(_s.ProxyUrl, _s.TimeoutSeconds);
+        _client = new ProxyClient(_s.EffectiveProxyUrl, _s.TimeoutSeconds);
         if (_cts == null) old.Dispose();
         SaveSettings();
     }

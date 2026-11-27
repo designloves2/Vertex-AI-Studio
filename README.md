@@ -8,7 +8,13 @@ Vertex OpenAI Proxy(`http://127.0.0.1:3000`)를 통해 Google 이미지 모델(N
 1. [Releases](https://github.com/designloves2/Vertex-AI-Studio/releases/latest)에서 `VertexAIStudioApp-win-Setup.exe`를 받아 실행합니다.
    - 서명되지 않은 설치 파일이라 SmartScreen 경고가 나오면 **추가 정보 → 실행**을 누릅니다.
 2. 설치가 끝나면 바탕화면과 시작 메뉴에 **Vertex AI Studio**가 생깁니다.
-3. [Vertex OpenAI Proxy](https://github.com/designloves2/vertex-openai-proxy) 앱을 먼저 실행해 두세요.
+3. 처음 실행하면 **Google 계정으로 시작하기** 화면이 열립니다. 브라우저에서 로그인만 하면
+   Google Cloud CLI 설치 → 프로젝트 선택 → Vertex AI 권한(`roles/aiplatform.user`) 부여 → Vertex AI API 사용 설정 →
+   내장 프록시 실행까지 자동으로 진행됩니다.
+
+별도의 프록시 앱은 필요 없습니다. [Vertex OpenAI Proxy](https://github.com/designloves2/vertex-openai-proxy)가 앱에
+내장되어 `127.0.0.1:3001`에서 함께 실행됩니다(기존 프록시의 3000번과 겹치지 않음). 기존 프록시가 설치된 PC라면 그 `.env`의
+프로젝트·리전·모델 설정을 처음 실행할 때 자동으로 가져옵니다. 설정 › 내장 프록시에서 상태·로그 확인, 재시작, 외부 프록시로 전환이 가능합니다.
 
 - 업데이트: 앱이 시작할 때 GitHub Releases를 확인해 새 버전이 있으면 상단에 알려 줍니다.
   **업데이트 후 재시작**을 누르면 받아서 다시 시작합니다(설정 › 업데이트에서 끄거나 바로 확인 가능).
@@ -23,6 +29,8 @@ Vertex OpenAI Proxy(`http://127.0.0.1:3000`)를 통해 Google 이미지 모델(N
 - Enter / Ctrl+Enter 전송 키 전환, 접을 수 있는 좌우 패널, 미리보기 휠 줌·드래그 이동·더블클릭 맞춤
 
 ## 개발
+
+- 내장 프록시: `proxy/`(vertex-openai-proxy의 `index.js` 사본). 갱신은 `.\proxy\sync-from-upstream.ps1`, 개발 실행 전 `proxy`에서 `npm ci` 한 번.
 
 - .NET 8 SDK, WinUI 3 (Windows App SDK 1.6), unpackaged + self-contained
 - `src/ImageStudio.Core` — UI 없는 로직(프록시 클라이언트, SQLite 저장소, 기록 구성, /compact)

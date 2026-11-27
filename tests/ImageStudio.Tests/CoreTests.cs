@@ -144,3 +144,30 @@ public class StoreTests
         finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); try { Directory.Delete(dir, true); } catch { } }
     }
 }
+
+public class GoogleSetupTests
+{
+    [Fact]
+    public void ReadsExistingProxyEnv()
+    {
+        var f = Path.Combine(Path.GetTempPath(), "vas-env-" + Guid.NewGuid().ToString("N"));
+        File.WriteAllText(f, "﻿# c\nGOOGLE_CLOUD_PROJECT_ID=my-proj\nGOOGLE_CLOUD_LOCATION=us-central1\nPORT=3000\n");
+        try
+        {
+            var s = GoogleSetup.ReadEnv(f)!;
+            Assert.Equal("my-proj", s.ProjectId);
+            Assert.Equal("us-central1", s.Location);
+            Assert.Null(s.Model);
+        }
+        finally { File.Delete(f); }
+    }
+
+    [Fact]
+    public void EmbeddedProxyUrlUsesPort3001ByDefault()
+    {
+        var s = new AppSettings();
+        Assert.Equal("http://127.0.0.1:3001", s.EffectiveProxyUrl);
+        s.UseEmbeddedProxy = false;
+        Assert.Equal("http://127.0.0.1:3000", s.EffectiveProxyUrl);
+    }
+}

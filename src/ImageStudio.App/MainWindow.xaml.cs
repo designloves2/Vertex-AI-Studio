@@ -29,7 +29,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         _s = AppSettings.Load(_paths.Settings);
         _store = new Store(_paths);
-        _client = new ProxyClient(_s.ProxyUrl, _s.TimeoutSeconds);
+        _client = new ProxyClient(_s.EffectiveProxyUrl, _s.TimeoutSeconds);
         _svc = new StudioService(_store, () => _s, () => _client);
         StudioService.Converter = ImageUtil.Convert;
         try { _store.PurgeTrash(); } catch { }
@@ -44,7 +44,7 @@ public sealed partial class MainWindow : Window
         GearButton.SizeChanged += (_, _) => UpdateTitleBarRegions();
         PanelToggleButton.SizeChanged += (_, _) => UpdateTitleBarRegions();
         Activated += (_, _) => UpdateTitleBarRegions();
-        Closed += (_, _) => { SaveSettings(); _store.Dispose(); };
+        Closed += (_, _) => { SaveSettings(); _proxy.Dispose(); _store.Dispose(); };
 
         var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
@@ -70,7 +70,7 @@ public sealed partial class MainWindow : Window
         _proxyTimer.Interval = TimeSpan.FromSeconds(20);
         _proxyTimer.Tick += async (_, _) => await CheckProxyAsync(false);
         _proxyTimer.Start();
-        _ = CheckProxyAsync(true);
+        _ = StartupProxyAsync();
         if (_s.AutoCheckUpdates) _ = CheckForUpdateAsync(silent: true);
     }
 
@@ -175,10 +175,14 @@ public sealed partial class MainWindow : Window
         }
         catch { ok = false; }
 
-        var host = new Uri(_s.ProxyUrl).Authority;
+        var host = new Uri(_s.EffectiveProxyUrl).Authority;
+        var kind = _s.UseEmbeddedProxy ? "내장 프록시" : "Proxy";
         ProxyDot.Fill = new SolidColorBrush(ok ? Windows.UI.Color.FromArgb(255, 0x6C, 0xCB, 0x5F) : Windows.UI.Color.FromArgb(255, 0xE8, 0x4A, 0x4A));
-        ProxyText.Text = ok ? $"Proxy {host} · {_s.Generation.Region}" : $"Proxy {host} · 연결 안 됨";
-        if (!ok) ShowBanner("프록시에 연결할 수 없습니다", "Vertex OpenAI Proxy 앱을 실행하세요. (" + _s.ProxyUrl + ")", InfoBarSeverity.Warning);
+        ProxyText.Text = ok ? $"{kind} {host} · {_s.Generation.Region}" : $"{kind} {host} · 연결 안 됨";
+        if (!ok && SetupPage.Visibility != Visibility.Visible)
+            ShowBanner("프록시에 연결할 수 없습니다",
+                _s.UseEmbeddedProxy ? "내장 프록시가 실행되지 않았습니다. 설정 › 내장 프록시에서 상태와 로그를 확인하세요."
+                                    : "Vertex OpenAI Proxy 앱을 실행하세요. (" + _s.ProxyUrl + ")", InfoBarSeverity.Warning);
         else if (Banner.IsOpen && Banner.Title.StartsWith("프록시")) Banner.IsOpen = false;
     }
 

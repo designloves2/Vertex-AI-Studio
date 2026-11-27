@@ -7,7 +7,7 @@
     Version = <Version> in src/ImageStudio.App/ImageStudio.App.csproj (bump it for every release).
     Output: artifacts\releases\VertexAIStudio-win-Setup.exe (+ full/delta .nupkg, releases.win.json).
 
-    Requirements: .NET 8 SDK, vpk (dotnet tool install -g vpk --version 1.2.161), gh (logged in) for -Publish.
+    Requirements: .NET 8 SDK, Node.js (bundled as the embedded proxy runtime), vpk (dotnet tool install -g vpk --version 1.2.161), gh (logged in) for -Publish.
 
 .EXAMPLE
     .\release.ps1            # build installer only
@@ -42,6 +42,18 @@ if ($LASTEXITCODE) { throw "tests failed" }
 
 dotnet publish $csproj -c Release -r win-x64 --self-contained -o $publishDir
 if ($LASTEXITCODE) { throw "dotnet publish failed" }
+
+# Embedded Vertex OpenAI Proxy: index.js + production node_modules + node.exe under <app>\proxy.
+$proxySrc = Join-Path $root "proxy"
+$proxyOut = Join-Path $publishDir "proxy"
+New-Item -ItemType Directory -Force $proxyOut | Out-Null
+foreach ($f in "index.js", "package.json", "package-lock.json", "LICENSE", "UPSTREAM_COMMIT") { Copy-Item (Join-Path $proxySrc $f) $proxyOut }
+Push-Location $proxyOut
+try { npm ci --omit=dev --no-audit --no-fund; if ($LASTEXITCODE) { throw "npm ci failed" } } finally { Pop-Location }
+$node = (Get-Command node -ErrorAction Stop).Source
+New-Item -ItemType Directory -Force (Join-Path $proxyOut "node") | Out-Null
+Copy-Item $node (Join-Path (Join-Path $proxyOut "node") "node.exe")
+Write-Host "Embedded proxy: $(Get-Content (Join-Path $proxySrc 'UPSTREAM_COMMIT')) with node $(& $node --version)"
 
 $token = $null
 if ($Publish) {

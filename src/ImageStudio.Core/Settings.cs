@@ -45,7 +45,20 @@ public sealed class GenerationSettings
 
 public sealed class AppSettings
 {
+    /// <summary>External proxy URL, used only when <see cref="UseEmbeddedProxy"/> is off.</summary>
     public string ProxyUrl { get; set; } = "http://127.0.0.1:3000";
+
+    // Embedded proxy (bundled index.js), started with the app.
+    public bool UseEmbeddedProxy { get; set; } = true;
+    public int ProxyPort { get; set; } = 3001;
+    public string? GcpProjectId { get; set; }
+    public string GcpLocation { get; set; } = "global";
+    public string ProxyDefaultModel { get; set; } = "gemini-3.7-flash";
+    /// <summary>Set once the existing proxy's .env was looked for, so it is imported only once.</summary>
+    public bool ProxyImportChecked { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string EffectiveProxyUrl => UseEmbeddedProxy ? $"http://127.0.0.1:{ProxyPort}" : ProxyUrl;
     public string OutputDirectory { get; set; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "VertexAIStudio");
     public int TimeoutSeconds { get; set; } = 300;

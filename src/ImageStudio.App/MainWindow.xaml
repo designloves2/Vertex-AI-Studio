@@ -229,6 +229,43 @@
                 </ScrollViewer>
             </Grid>
 
+            <!-- First-run Google setup (sign-in, project, Vertex API, permission, embedded proxy) -->
+            <Grid x:Name="SetupPage" Grid.ColumnSpan="3" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+                <ScrollViewer Padding="24">
+                    <StackPanel MaxWidth="640" Spacing="14" VerticalAlignment="Center" Margin="0,24">
+                        <FontIcon Glyph="&#xE753;" FontSize="40" HorizontalAlignment="Left" />
+                        <TextBlock Text="Google 계정으로 시작하기" Style="{StaticResource TitleTextBlockStyle}" />
+                        <TextBlock Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="이 PC에서 처음 실행할 때 한 번만 필요합니다. 로그인하면 Google Cloud CLI 설치, 프로젝트 선택, Vertex AI API 사용 설정, 권한 확인, 내장 프록시 실행까지 자동으로 진행됩니다. 브라우저 창이 열리면 Google 계정으로 로그인만 하세요." />
+                        <Border Style="{StaticResource CardStyle}" Padding="18,12">
+                            <StackPanel x:Name="SetupSteps" Spacing="8" />
+                        </Border>
+                        <StackPanel x:Name="SetupProjectPanel" Visibility="Collapsed" Spacing="8">
+                            <TextBlock Text="사용할 Google Cloud 프로젝트를 고르세요" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <ComboBox x:Name="SetupProjectCombo" MinWidth="380" />
+                                <Button x:Name="SetupProjectOk" Content="이 프로젝트 사용" Style="{StaticResource AccentButtonStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <InfoBar x:Name="SetupMessage" IsOpen="False" IsClosable="False" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button x:Name="SetupStartButton" Style="{StaticResource AccentButtonStyle}" Click="SetupStart_Click" Padding="18,8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ProgressRing x:Name="SetupRing" IsActive="False" Width="16" Height="16" Visibility="Collapsed" />
+                                    <TextBlock x:Name="SetupStartText" Text="Google 로그인으로 시작" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="SetupCancelButton" Content="취소" Click="SetupCancel_Click" Visibility="Collapsed" />
+                            <Button x:Name="SetupLaterButton" Content="나중에 하기" Click="SetupLater_Click" />
+                        </StackPanel>
+                        <Expander Header="진행 로그" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <TextBox x:Name="SetupLog" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" MaxHeight="220"
+                                     FontFamily="Consolas" FontSize="12" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
             <!-- Image preview overlay -->
             <Grid x:Name="PreviewOverlay" Grid.ColumnSpan="3" Visibility="Collapsed" Background="#E6000000" Tapped="PreviewBackground_Tapped">
                 <ScrollViewer x:Name="PreviewScroll" ZoomMode="Enabled" MinZoomFactor="0.1" MaxZoomFactor="10"
