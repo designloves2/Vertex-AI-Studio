@@ -1,7 +1,7 @@
 # Vertex AI Studio (Image)
 
-Vertex OpenAI Proxy(`http://127.0.0.1:3000`)를 통해 Google 이미지 모델(Nano Banana 등)로
-대화하듯 이미지를 만들고 이어서 수정하는 Windows 앱입니다.
+Google Vertex AI 이미지 모델(Nano Banana 등)로 대화하듯 이미지를 만들고 이어서 수정하는 Windows 앱입니다.
+Vertex OpenAI Proxy가 내장되어 있어 Google 계정 로그인만으로 바로 사용할 수 있습니다.
 
 ## 설치
 
