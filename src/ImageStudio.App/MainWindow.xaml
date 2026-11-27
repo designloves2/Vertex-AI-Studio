@@ -93,10 +93,6 @@
                         <Button Style="{StaticResource IconButton}" Click="RailSearch_Click" ToolTipService.ToolTip="검색">
                             <FontIcon Glyph="&#xE721;" FontSize="13" />
                         </Button>
-                        <TextBlock Text="대화 목록" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                   HorizontalAlignment="Center" Margin="0,8,0,0">
-                            <TextBlock.RenderTransform><RotateTransform Angle="90" CenterX="24" CenterY="8" /></TextBlock.RenderTransform>
-                        </TextBlock>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -210,7 +206,9 @@
                         <Button Style="{StaticResource IconButton}" Click="TogglePanel_Click" ToolTipService.ToolTip="설정 패널 펼치기">
                             <FontIcon Glyph="&#xE76B;" FontSize="12" />
                         </Button>
-                        <FontIcon Glyph="&#xE713;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Button Style="{StaticResource IconButton}" Click="TogglePanel_Click" ToolTipService.ToolTip="이미지 설정 펼치기" AutomationProperties.Name="이미지 설정 펼치기">
+                            <FontIcon Glyph="&#xE713;" FontSize="13" />
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>

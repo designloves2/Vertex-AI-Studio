@@ -173,6 +173,7 @@ public sealed partial class MainWindow
             cb.Text = value;
         }
         _settingsBuilding = was;
+        if (ChipsPanel != null) UpdateChips();   // model dropdown in the top bar
     }
 
     void SyncEnhanceCombos()

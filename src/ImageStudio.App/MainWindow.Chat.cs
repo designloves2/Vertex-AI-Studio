@@ -316,24 +316,77 @@ public sealed partial class MainWindow
         CompactButton.IsEnabled = HistoryBuilder.ActiveTurns(_msgs).Turns.Count >= 2 && _cts == null;
     }
 
+    /// <summary>
+    /// Top bar: model / ratio / resolution / format / enhance as dropdowns, so they can be changed with the
+    /// settings panel folded. Every change goes through the same settings object and refreshes the panel,
+    /// and panel changes call UpdateChips — both stay in sync.
+    /// </summary>
     void UpdateChips()
     {
         ChipsPanel.Children.Clear();
         var g = _s.Generation;
-        Chip("모델", ModelCatalog.DisplayName(g.Model));
-        Chip("비율", g.AspectRatio == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : g.AspectRatio);
-        Chip("해상도", g.Size switch { ImageSize.K1 => "1K", ImageSize.K4 => "4K", _ => "2K" });
-        Chip(null, g.Format == OutputFormat.Jpeg ? "JPEG" : "PNG");
-        if (_s.EnhanceEnabled) Chip("✨ 인핸스", "ON");
-        if (g.GoogleSearch) Chip("🔍 검색", "ON");
+
+        var models = _imageModels.ToList();
+        if (!models.Contains(g.Model)) models.Insert(0, g.Model);
+        ChipMenu("모델", ModelCatalog.DisplayName(g.Model),
+            models.Select(m => (ModelCatalog.DisplayName(m) == m ? m : $"{ModelCatalog.DisplayName(m)}  ({m})", m == g.Model, (Action)(() => g.Model = m))));
+
+        ChipMenu("비율", g.AspectRatio == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : g.AspectRatio,
+            GenerationSettings.AspectRatios.Select(r => (r == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : r, r == g.AspectRatio, (Action)(() => g.AspectRatio = r))));
+
+        ChipMenu("해상도", SizeLabel(g.Size),
+            new[] { ImageSize.K1, ImageSize.K2, ImageSize.K4 }.Select(z => (SizeLabel(z), z == g.Size, (Action)(() => g.Size = z))));
+
+        ChipMenu("형식", g.Format == OutputFormat.Jpeg ? "JPEG" : "PNG",
+            new[] { (OutputFormat.Png, "PNG"), (OutputFormat.Jpeg, "JPEG") }.Select(f => (f.Item2, f.Item1 == g.Format, (Action)(() => g.Format = f.Item1))));
+
+        ChipMenu("✨ 인핸스", _s.EnhanceEnabled ? "ON" : "OFF",
+            new[] { (true, "켜기"), (false, "끄기") }.Select(o => (o.Item2, o.Item1 == _s.EnhanceEnabled, (Action)(() => _s.EnhanceEnabled = o.Item1))));
+
+        if (g.GoogleSearch) ChipStatic("🔍 검색", "ON");
     }
 
-    void Chip(string? label, string value)
+    static string SizeLabel(ImageSize z) => z switch { ImageSize.K1 => "1K", ImageSize.K4 => "4K", _ => "2K" };
+
+    void ChipMenu(string label, string value, IEnumerable<(string Text, bool Checked, Action Apply)> items)
     {
         var t = new TextBlock { FontSize = 12 };
-        if (label != null) t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = label + " ", Foreground = ThemeBrush("TextFillColorSecondaryBrush") });
+        t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = label + " ", Foreground = ThemeBrush("TextFillColorSecondaryBrush") });
         t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = value, FontWeight = FontWeights.SemiBold });
-        ChipsPanel.Children.Add(new Border { Style = Res("ChipBorder"), Child = t });
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };
+        foreach (var (text, isChecked, apply) in items)
+        {
+            var mi = new RadioMenuFlyoutItem { Text = text, IsChecked = isChecked, GroupName = label };
+            mi.Click += (_, _) => { apply(); OnChipChanged(); };
+            menu.Items.Add(mi);
+        }
+        ChipsPanel.Children.Add(new DropDownButton
+        {
+            Content = t, Flyout = menu, CornerRadius = new CornerRadius(14), Padding = new Thickness(10, 3, 8, 4), MinHeight = 0,
+        });
+    }
+
+    void ChipStatic(string label, string value)
+    {
+        var t = new TextBlock { FontSize = 12 };
+        t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = label + " ", Foreground = ThemeBrush("TextFillColorSecondaryBrush") });
+        t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = value, FontWeight = FontWeights.SemiBold });
+        ChipsPanel.Children.Add(new Border { Style = Res("ChipBorder"), Child = t, VerticalAlignment = VerticalAlignment.Center });
+    }
+
+    /// <summary>A top-bar change: save, rebuild the settings panel (keeping its scroll) and the chips.</summary>
+    void OnChipChanged()
+    {
+        SaveSettings();
+        var offset = SetExpanded.VerticalOffset;
+        BuildSettingsPanel();
+        SetExpanded.UpdateLayout();
+        SetExpanded.ChangeView(null, offset, null, true);
+        _settingsBuilding = true;
+        QuickEnhance.IsOn = _s.EnhanceEnabled;
+        _settingsBuilding = false;
+        UpdateChips();
+        UpdateContext();
     }
 
     void UpdateKeyHint() => KeyHint.Text = _s.SendKey == SendKey.Enter
