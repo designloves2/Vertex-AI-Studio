@@ -1,6 +1,106 @@
 # Vertex AI Studio (Image)
 
-**한국어** | [English](README.en.md)
+**English** · [한국어](#한국어)
+
+A Windows app for **creating and iteratively editing images in a chat** with Google Vertex AI image models
+(the Nano Banana family). [Vertex OpenAI Proxy](https://github.com/designloves2/vertex-openai-proxy) is built in,
+so **signing in with your Google account** is all it takes — no separate server to run.
+
+![Main window](docs/screenshots/maximized.png)
+
+## Install
+
+1. Download `VertexAIStudioApp-win-Setup.exe` from the [latest release](https://github.com/designloves2/Vertex-AI-Studio/releases/latest) and run it.
+   - The installer is not code-signed; if SmartScreen warns, choose **More info → Run anyway**.
+   - .NET, the Windows App SDK and the Node.js runtime are bundled — nothing else to install (Windows 10 1809+ / 11).
+2. **Vertex AI Studio** appears on the desktop and in the Start menu.
+3. On first launch the **Get started with your Google account** page opens. Sign in in the browser window; everything else is automatic.
+
+| Step | What happens |
+|---|---|
+| 1. Google Cloud CLI | Installed per user if missing (no admin rights) |
+| 2. Google sign-in | Browser sign-in → Application Default Credentials |
+| 3. Project | Picked automatically if you have one, otherwise chosen from a list |
+| 4. Vertex AI permission | `roles/aiplatform.user` checked and granted if missing |
+| 5. Vertex AI API | `aiplatform.googleapis.com` enabled |
+| 6. Embedded proxy | Started on `127.0.0.1:3001` |
+
+- You need a Google Cloud project with billing. The setup page tells you when billing or a project is missing.
+- On a PC that already has Vertex OpenAI Proxy, its `.env` (project, region, model) is imported on first launch.
+- To run the setup again: ⚙ Settings › **Embedded proxy · Google account** › **Google account setup**.
+
+## Features
+
+**Chat-style generation and editing**
+- Conversations and images are saved, so you can keep editing after restarting the app or the next day.
+- Edit the previous result ("make it brighter", "change only the background"); **Continue with this** pins the base image.
+- Reference images: drag & drop, Ctrl+V or the attach button.
+- Per-image save / copy / open folder / regenerate. Preview opens fit-to-window with wheel zoom, drag to pan, double-click to fit.
+
+**Context management**
+- The conversation is re-sent with every request, with only the latest N images (default 3) inlined.
+- `/compact` (or the **Compact** button) summarises the conversation and keeps the 2 latest images; it also runs automatically at a threshold (default 80%).
+
+**Prompt enhance**
+- An LLM (default `gemini-3.7-flash`, configurable) rewrites your prompt into a detailed image prompt; both versions are shown.
+
+**Vertex image options**
+- Models: Nano Banana 2.1 / 2 / 2 lite / Pro … listed as `friendly name (model id)`
+- Output (image + text / image only), thinking level (low/medium/high), media resolution
+- 10 aspect ratios (auto = 2:3, 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9), output resolution 1K/2K/4K, PNG/JPEG
+- Person generation (all ages / adults / none), region, max output tokens, streaming
+- Options a model rejects are dropped and retried, and listed above the result as "options not applied".
+
+**UI**
+- Both the conversation list (left) and the image settings panel (right) fold away; their state is remembered.
+- Top-bar dropdowns change model, ratio, resolution, format and enhance directly — kept in sync with the panel in real time.
+- Send key: Enter or Ctrl+Enter (the other one inserts a newline).
+
+![Top-bar dropdowns and settings panel](docs/screenshots/chips-sync.png)
+
+## Updates and uninstall
+
+- On start the app checks GitHub Releases and shows a banner when a newer version exists; **Update and restart** downloads it and relaunches.
+  Turn auto-check off or check now under ⚙ Settings › Updates.
+- Uninstall from Windows Settings › Apps. Conversations, images and settings (`%LOCALAPPDATA%\VertexAIStudio`) are kept.
+
+## Where data lives
+
+| Location | Contents |
+|---|---|
+| `%LOCALAPPDATA%\VertexAIStudio\studio.db` | Conversations and messages (SQLite) |
+| `%LOCALAPPDATA%\VertexAIStudio\images\` | Original images as received (never re-encoded) |
+| `%LOCALAPPDATA%\VertexAIStudio\settings.json` | App settings |
+| `Pictures\VertexAIStudio\` (configurable) | Results saved in the chosen output format |
+| `%APPDATA%\gcloud\application_default_credentials.json` | Google sign-in (gcloud ADC) |
+| `%LOCALAPPDATA%\VertexAIStudioApp\` | Installed app (removed on uninstall) |
+
+## Development
+
+- .NET 8 SDK, WinUI 3 (Windows App SDK 1.6), unpackaged + self-contained, Velopack (install/update)
+- `src/ImageStudio.Core` — UI-free logic: proxy client, SQLite store, history builder, `/compact`, embedded proxy host, Google setup
+- `src/ImageStudio.App` — the WinUI 3 app
+- `tests/ImageStudio.Tests` — xUnit (`dotnet test tests/ImageStudio.Tests`)
+- `proxy/` — embedded proxy (a copy of vertex-openai-proxy's `index.js`; `UPSTREAM_COMMIT` records the source commit)
+  - Run `npm ci` in `proxy` once before a dev run (node is taken from PATH)
+  - Refresh: `.\proxy\sync-from-upstream.ps1 [-Upstream <path to the proxy repo>]`
+
+## Release
+
+1. Bump `<Version>` in `src/ImageStudio.App/ImageStudio.App.csproj`.
+2. `.\release.ps1 -Publish` — tests → publish → bundle the embedded proxy (+ node.exe) → Velopack installer and delta packages → GitHub release `v<version>`
+   - Requires Node.js, `dotnet tool install -g vpk --version 1.2.161`, `gh auth login`
+   - Without `-Publish` it only builds the installer into `artifacts\releases`.
+
+The install folder (`%LOCALAPPDATA%\VertexAIStudioApp`) is deleted on uninstall, so it must differ from the data folder.
+
+## License
+
+The embedded proxy (`proxy/`) is under its upstream MIT license (`proxy/LICENSE`).
+
+---
+
+## 한국어
 
 Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미지를 만들고 이어서 수정**하는 Windows 앱입니다.
 [Vertex OpenAI Proxy](https://github.com/designloves2/vertex-openai-proxy)가 내장되어 있어, 별도 프로그램 없이
@@ -8,7 +108,7 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
 
 ![메인 화면](docs/screenshots/maximized.png)
 
-## 설치
+### 설치
 
 1. [최신 릴리즈](https://github.com/designloves2/Vertex-AI-Studio/releases/latest)에서 `VertexAIStudioApp-win-Setup.exe`를 받아 실행합니다.
    - 코드 서명이 없는 설치 파일이라 SmartScreen 경고가 나오면 **추가 정보 → 실행**을 누릅니다.
@@ -29,7 +129,7 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
 - 기존 Vertex OpenAI Proxy가 설치된 PC라면 그 `.env`의 프로젝트·리전·모델 설정을 처음 실행할 때 자동으로 가져옵니다.
 - 설정을 다시 하려면 ⚙ 설정 › **내장 프록시 · Google 계정** › **Google 계정 설정**을 누릅니다.
 
-## 주요 기능
+### 주요 기능
 
 **대화형 생성·수정**
 - 대화 기록과 생성 이미지가 저장되어 앱을 다시 켜도, 다음 날에도 이어서 수정합니다.
@@ -58,13 +158,13 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
 
 ![상단 드롭다운과 설정 패널](docs/screenshots/chips-sync.png)
 
-## 업데이트와 제거
+### 업데이트와 제거
 
 - 앱이 시작할 때 GitHub Releases를 확인해 새 버전이 있으면 상단에 알려 줍니다. **업데이트 후 재시작**을 누르면 받아서 다시 시작합니다.
   ⚙ 설정 › 업데이트에서 자동 확인을 끄거나 바로 확인할 수 있습니다.
 - 제거는 Windows 설정 › 앱에서 합니다. 대화·이미지·설정(`%LOCALAPPDATA%\VertexAIStudio`)은 제거해도 남습니다.
 
-## 데이터 위치
+### 데이터 위치
 
 | 위치 | 내용 |
 |---|---|
@@ -75,7 +175,7 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
 | `%APPDATA%\gcloud\application_default_credentials.json` | Google 로그인 정보 (gcloud ADC) |
 | `%LOCALAPPDATA%\VertexAIStudioApp\` | 설치된 앱 (제거 시 삭제) |
 
-## 개발
+### 개발
 
 - .NET 8 SDK, WinUI 3 (Windows App SDK 1.6), unpackaged + self-contained, Velopack(설치·업데이트)
 - `src/ImageStudio.Core` — UI 없는 로직: 프록시 클라이언트, SQLite 저장소, 기록 구성, `/compact`, 내장 프록시 실행, Google 설정
@@ -85,7 +185,7 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
   - 개발 실행 전 `proxy` 폴더에서 `npm ci` 한 번 (node는 PATH에서 찾음)
   - 갱신: `.\proxy\sync-from-upstream.ps1 [-Upstream <프록시 저장소 경로>]`
 
-## 릴리즈
+### 릴리즈
 
 1. `src/ImageStudio.App/ImageStudio.App.csproj`의 `<Version>`을 올립니다.
 2. `.\release.ps1 -Publish` — 테스트 → 게시 → 내장 프록시(+node.exe) 포함 → Velopack 설치 파일·델타 패키지 생성 → GitHub 릴리즈 `v<버전>` 업로드
@@ -94,6 +194,6 @@ Google Vertex AI 이미지 모델(Nano Banana 계열)로 **대화하듯 이미�
 
 설치 폴더(`%LOCALAPPDATA%\VertexAIStudioApp`)는 제거할 때 지워지므로 데이터 폴더와 이름이 달라야 합니다.
 
-## 라이선스
+### 라이선스
 
 내장 프록시(`proxy/`)는 원본 저장소의 MIT 라이선스(`proxy/LICENSE`)를 따릅니다.
