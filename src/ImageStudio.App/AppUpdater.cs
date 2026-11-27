@@ -1,3 +1,4 @@
+using ImageStudio.Core;
 using Velopack;
 using Velopack.Sources;
 
@@ -42,7 +43,7 @@ public sealed class AppUpdater
 
     public async Task DownloadAsync(Action<int>? progress = null)
     {
-        if (_pending == null) throw new InvalidOperationException("확인된 업데이트가 없습니다.");
+        if (_pending == null) throw new InvalidOperationException(L.T("확인된 업데이트가 없습니다."));
         await _mgr.DownloadUpdatesAsync(_pending, progress);
     }
 

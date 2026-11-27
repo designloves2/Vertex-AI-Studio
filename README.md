@@ -85,6 +85,10 @@ A Windows app for creating and iteratively editing images in a chat with Google 
 - 빠진 옵션은 결과 위에 "적용되지 않은 옵션"으로 알려 줍니다.\
   The dropped options are listed above the result as "options not applied".
 
+**언어 / Language**
+- Windows 표시 언어가 한국어면 한국어로, 그 밖에는 영어로 표시됩니다.  The UI is shown in Korean when Windows is set to Korean, and in English otherwise.
+- ⚙ 설정 › 앱 › 언어에서 시스템 / 한국어 / English를 직접 고를 수 있습니다(다시 시작 후 적용).  You can pick System / 한국어 / English under ⚙ Settings › App › Language (applies after a restart).
+
 **화면 / UI**
 - 왼쪽 대화 목록과 오른쪽 이미지 설정 패널을 각각 접을 수 있고, 상태를 기억합니다.\
   The conversation list (left) and the image settings panel (right) each fold away, and their state is remembered.
@@ -156,5 +160,12 @@ The install folder (`%LOCALAPPDATA%\VertexAIStudioApp`) is deleted on uninstall,
 
 ## 라이선스 / License
 
-내장 프록시(`proxy/`)는 원본 저장소의 MIT 라이선스(`proxy/LICENSE`)를 따릅니다.\
-The embedded proxy (`proxy/`) is under its upstream MIT license (`proxy/LICENSE`).
+이 프로젝트는 [GNU General Public License v3.0](LICENSE)으로 배포됩니다.This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
+수정한 버전을 배포할 때는 소스 코드도 같은 GPL-3.0으로 공개해야 합니다.If you distribute a modified version, its source code must also be released under GPL-3.0.
+
+내장 프록시(`proxy/`)는 원본 저장소의 MIT 라이선스(`proxy/LICENSE`)를 따르며, 그 고지를 유지합니다.The embedded proxy (`proxy/`) keeps its upstream MIT license and notice (`proxy/LICENSE`).
+
+## 개발자 / Developer
+
+TJ.CHOI · [github.com/designloves2](https://github.com/designloves2) · [tj.choi.79@gmail.com](mailto:tj.choi.79@gmail.com)

@@ -13,9 +13,9 @@ public sealed class ProxyException : Exception
     public ProxyException(string message, int statusCode = 0, bool proxyDown = false, Exception? inner = null)
         : base(message, inner) { StatusCode = statusCode; ProxyDown = proxyDown; }
 
-    public string UserMessage => ProxyDown ? "프록시에 연결할 수 없습니다. Vertex OpenAI Proxy 앱을 실행하세요."
-        : StatusCode == 429 ? "쿼터 초과 (429). 잠시 후 다시 시도하세요."
-        : StatusCode is 403 or 404 ? $"이 모델을 사용할 권한이 없거나 찾을 수 없습니다 ({StatusCode}): {Message}"
+    public string UserMessage => ProxyDown ? L.T("프록시에 연결할 수 없습니다. Vertex OpenAI Proxy 앱을 실행하세요.")
+        : StatusCode == 429 ? L.T("쿼터 초과 (429). 잠시 후 다시 시도하세요.")
+        : StatusCode is 403 or 404 ? L.F("이 모델을 사용할 권한이 없거나 찾을 수 없습니다 ({0}): {1}", StatusCode, Message)
         : Message;
 }
 
@@ -92,7 +92,7 @@ public sealed class ProxyClient : IDisposable
             if (data == "[DONE]") break;
             JsonNode? chunk;
             try { chunk = JsonNode.Parse(data); } catch { continue; }
-            if (chunk?["error"] is JsonNode err) throw new ProxyException((string?)err["message"] ?? "스트리밍 오류");
+            if (chunk?["error"] is JsonNode err) throw new ProxyException((string?)err["message"] ?? L.T("스트리밍 오류"));
             var delta = chunk?["choices"]?[0]?["delta"];
             if ((string?)delta?["content"] is { Length: > 0 } d) { content.Append(d); onDelta?.Invoke(d); }
             if ((string?)delta?["reasoning_content"] is { Length: > 0 } r) reasoning.Append(r);
@@ -126,7 +126,7 @@ public sealed class ProxyClient : IDisposable
         catch (HttpRequestException e) when (e.StatusCode == null)
         { throw new ProxyException(e.Message, 0, proxyDown: true, e); }
         catch (TaskCanceledException e) when (!ct.IsCancellationRequested)
-        { throw new ProxyException($"요청 시간 초과 ({_http.Timeout.TotalSeconds:0}초)", 408, false, e); }
+        { throw new ProxyException(L.F("요청 시간 초과 ({0:0}초)", _http.Timeout.TotalSeconds), 408, false, e); }
     }
 
     static async Task EnsureOk(HttpResponseMessage res, CancellationToken ct)
@@ -135,7 +135,7 @@ public sealed class ProxyClient : IDisposable
         var text = await res.Content.ReadAsStringAsync(ct);
         string msg = text;
         try { msg = (string?)JsonNode.Parse(text)?["error"]?["message"] ?? text; } catch { }
-        throw new ProxyException(string.IsNullOrWhiteSpace(msg) ? res.ReasonPhrase ?? "오류" : msg, (int)res.StatusCode);
+        throw new ProxyException(string.IsNullOrWhiteSpace(msg) ? res.ReasonPhrase ?? L.T("오류") : msg, (int)res.StatusCode);
     }
 }
 

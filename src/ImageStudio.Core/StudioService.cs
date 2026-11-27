@@ -103,7 +103,7 @@ public sealed class StudioService
         if (conv.MessageCount == 0 && all.Count == 0)
         {
             var t = req.Prompt.ReplaceLineEndings(" ").Trim();
-            conv.Title = t.Length > 40 ? t[..40] : (t.Length == 0 ? "새 대화" : t);
+            conv.Title = t.Length > 40 ? t[..40] : (t.Length == 0 ? L.T("새 대화") : t);
         }
         conv.Model = _settings().Generation.Model;
         conv.UpdatedAt = Conversation.Now();
@@ -147,7 +147,7 @@ public sealed class StudioService
         {
             if (s.EnhanceEnabled && !ModelCatalog.IsImagen(gen.Model) && string.IsNullOrWhiteSpace(user.Enhanced))
             {
-                onPhase?.Invoke("프롬프트 강화 중…");
+                onPhase?.Invoke(L.T("프롬프트 강화 중…"));
                 try
                 {
                     var prior = all.Where(m => m.Seq < user.Seq).ToList();
@@ -157,7 +157,7 @@ public sealed class StudioService
                 catch (ProxyException) { /* enhance is best-effort: fall back to the raw prompt */ }
             }
 
-            onPhase?.Invoke("이미지 생성 중…");
+            onPhase?.Invoke(L.T("이미지 생성 중…"));
             var history = _history.Build(all.Where(m => m.Seq <= user.Seq).ToList(),
                 s.HistoryImageCount, s.SystemPrompt, user.ContinueFromImageId);
             var body = ImageRequest.Build(gen, history.Messages);
@@ -181,7 +181,7 @@ public sealed class StudioService
             var result = await _client().ChatAsync(body, gen.Streaming, onDelta, ct);
             var (images, text) = ImageInfo.Extract(result.Content);
             if (images.Count == 0)
-                throw new ProxyException(string.IsNullOrWhiteSpace(text) ? "모델이 이미지를 반환하지 않았습니다." : text, 400);
+                throw new ProxyException(string.IsNullOrWhiteSpace(text) ? L.T("모델이 이미지를 반환하지 않았습니다.") : text, 400);
 
             asst.Text = text;
             asst.Thoughts = result.Reasoning;
@@ -206,7 +206,7 @@ public sealed class StudioService
         catch (OperationCanceledException)
         {
             asst.Status = MessageStatus.Cancelled;
-            asst.Error = "취소됨";
+            asst.Error = L.T("취소됨");
             asst.DurationMs = sw.ElapsedMilliseconds;
             _store.SaveMessage(asst);
             throw;
@@ -255,7 +255,7 @@ public sealed class StudioService
 
     const string CompactSystem = """
         You compress an image-generation chat so it can continue with a much shorter history.
-        Write a concise summary (Korean, max ~15 lines) that preserves:
+        Write a concise summary (in {LANG}, max ~15 lines) that preserves:
         - the overall goal and style decisions that are still in effect
         - exact text that must appear in images, brand names, colors, sizes, aspect ratio choices
         - what the latest image looks like and which edits were already applied
@@ -268,7 +268,7 @@ public sealed class StudioService
     {
         var s = _settings();
         var (summary, turns) = HistoryBuilder.ActiveTurns(all);
-        if (turns.Count < 2) throw new InvalidOperationException("압축할 대화가 충분하지 않습니다.");
+        if (turns.Count < 2) throw new InvalidOperationException(L.T("압축할 대화가 충분하지 않습니다."));
 
         var transcript = new List<string>();
         if (summary != null) transcript.Add("[이전 요약]\n" + summary.Text);
@@ -282,12 +282,12 @@ public sealed class StudioService
             ["model"] = s.CompactModel ?? s.EnhanceModel,
             ["temperature"] = 0.2,
             ["messages"] = new JsonArray(
-                new JsonObject { ["role"] = "system", ["content"] = CompactSystem },
+                new JsonObject { ["role"] = "system", ["content"] = CompactSystem.Replace("{LANG}", L.IsKorean ? "Korean" : "English") },
                 new JsonObject { ["role"] = "user", ["content"] = string.Join("\n", transcript) }),
         };
         var r = await _client().ChatAsync(body, stream: false, ct: ct);
         var text = StripThink(r.Content).Trim();
-        if (string.IsNullOrWhiteSpace(text)) throw new ProxyException("요약 결과가 비어 있습니다.");
+        if (string.IsNullOrWhiteSpace(text)) throw new ProxyException(L.T("요약 결과가 비어 있습니다."));
 
         // Keep the newest generated images (falling back to any image) as the visual baseline.
         var pool = new List<ImageRef>();
@@ -311,7 +311,7 @@ public sealed class StudioService
         };
         // turns replaced = user turns since the previous summary
         msg.Error = null;
-        msg.SettingsLabel = $"{turns.Count(t => t.Role == Roles.User)}턴 요약 · 기준 이미지 {keep.Count}장 유지";
+        msg.SettingsLabel = L.F("{0}턴 요약 · 기준 이미지 {1}장 유지", turns.Count(t => t.Role == Roles.User), keep.Count);
         _store.SaveMessage(msg);
         all.Add(msg);
         return msg;

@@ -56,12 +56,12 @@ public static class GoogleSetup
         var dir = Path.Combine(Path.GetTempPath(), "VertexAIStudio-gcloud");
         Directory.CreateDirectory(dir);
         var exe = Path.Combine(dir, "GoogleCloudSDKInstaller.exe");
-        log("Google Cloud CLI 다운로드 중…");
+        log(L.T("Google Cloud CLI 다운로드 중…"));
         using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
         await using (var src = await http.GetStreamAsync(InstallerUrl, ct))
         await using (var dst = File.Create(exe))
             await src.CopyToAsync(dst, ct);
-        log("Google Cloud CLI 설치 중 (몇 분 걸립니다)…");
+        log(L.T("Google Cloud CLI 설치 중 (몇 분 걸립니다)…"));
         using var p = Process.Start(new ProcessStartInfo(exe, "/S /singleuser /noreporting /nostartmenu /nodesktop")
         {
             UseShellExecute = false,
@@ -84,7 +84,7 @@ public static class GoogleSetup
     {
         var token = (await CaptureAsync(gcloud, "auth application-default print-access-token --quiet", ct)).Trim();
         if (string.IsNullOrEmpty(token) || token.Contains(' '))
-            throw new InvalidOperationException("액세스 토큰을 가져오지 못했습니다. 다시 로그인하세요.");
+            throw new InvalidOperationException(L.T("액세스 토큰을 가져오지 못했습니다. 다시 로그인하세요."));
         return token;
     }
 
@@ -173,7 +173,7 @@ public static class GoogleSetup
             var url = "https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=200&filter=lifecycleState%3AACTIVE"
                       + (page != null ? "&pageToken=" + Uri.EscapeDataString(page) : "");
             var r = await SendAsync(http, HttpMethod.Get, url, null, ct);
-            if (r.Status != 200) throw new InvalidOperationException("프로젝트 목록 조회 실패 — " + ErrorText(r));
+            if (r.Status != 200) throw new InvalidOperationException(L.T("프로젝트 목록 조회 실패 — ") + ErrorText(r));
             foreach (var p in r.Body?["projects"]?.AsArray() ?? new JsonArray())
                 list.Add(new GcpProject((string?)p!["projectId"] ?? "", (string?)p["name"] ?? ""));
             page = (string?)r.Body?["nextPageToken"];
@@ -194,25 +194,25 @@ public static class GoogleSetup
         using var http = Http(token);
         var svc = $"https://serviceusage.googleapis.com/v1/projects/{projectId}/services/{VertexService}";
         var state = await SendAsync(http, HttpMethod.Get, svc, null, ct);
-        if (state.Status == 200 && (string?)state.Body?["state"] == "ENABLED") { log("Vertex AI API: 이미 사용 설정됨"); return; }
+        if (state.Status == 200 && (string?)state.Body?["state"] == "ENABLED") { log(L.T("Vertex AI API: 이미 사용 설정됨")); return; }
 
         // Same command as install-windows.ps1; gcloud waits for the operation itself.
-        log("Vertex AI API 사용 설정 중 (gcloud services enable)…");
+        log(L.T("Vertex AI API 사용 설정 중 (gcloud services enable)…"));
         if (await RunWithTokenAsync(gcloud, $"services enable {VertexService} --project {projectId}", token, log, ct) == 0)
         {
-            log("Vertex AI API: 사용 설정 완료");
+            log(L.T("Vertex AI API: 사용 설정 완료"));
             return;
         }
 
-        log("gcloud로 설정하지 못해 Service Usage API로 다시 시도합니다…");
+        log(L.T("gcloud로 설정하지 못해 Service Usage API로 다시 시도합니다…"));
         var op = await SendAsync(http, HttpMethod.Post, svc + ":enable", new JsonObject(), ct);
         if (op.Status != 200)
         {
             var msg = ErrorText(op);
             if (msg.Contains("billing", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("이 프로젝트에 결제 계정이 연결되어 있지 않습니다. Google Cloud 콘솔에서 결제를 연결한 뒤 다시 시도하세요. (" + msg + ")");
-            throw new InvalidOperationException("Vertex AI API 사용 설정 실패 — " + msg
-                + " · 콘솔에서 직접 사용 설정할 수 있습니다: https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=" + projectId);
+                throw new InvalidOperationException(L.T("이 프로젝트에 결제 계정이 연결되어 있지 않습니다. Google Cloud 콘솔에서 결제를 연결한 뒤 다시 시도하세요. (") + msg + ")");
+            throw new InvalidOperationException(L.T("Vertex AI API 사용 설정 실패 — ") + msg
+                + L.T(" · 콘솔에서 직접 사용 설정할 수 있습니다: https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=") + projectId);
         }
         var name = (string?)op.Body?["name"];
         for (var i = 0; i < 90 && op.Body?["done"]?.GetValue<bool>() != true && name != null; i++)
@@ -220,8 +220,8 @@ public static class GoogleSetup
             await Task.Delay(2000, ct);
             op = await SendAsync(http, HttpMethod.Get, "https://serviceusage.googleapis.com/v1/" + name, null, ct);
         }
-        if (op.Body?["error"] is JsonNode err) throw new InvalidOperationException("Vertex AI API 사용 설정 실패 — " + (string?)err["message"]);
-        log("Vertex AI API: 사용 설정 완료");
+        if (op.Body?["error"] is JsonNode err) throw new InvalidOperationException(L.T("Vertex AI API 사용 설정 실패 — ") + (string?)err["message"]);
+        log(L.T("Vertex AI API: 사용 설정 완료"));
     }
 
     public static async Task<bool> HasVertexPermissionAsync(string token, string projectId, CancellationToken ct)
@@ -240,23 +240,23 @@ public static class GoogleSetup
     /// </summary>
     public static async Task<string?> EnsureVertexPermissionAsync(string gcloud, string token, string projectId, string? email, Action<string> log, CancellationToken ct)
     {
-        if (await HasVertexPermissionAsync(token, projectId, ct)) { log("Vertex AI 권한: 확인됨"); return null; }
+        if (await HasVertexPermissionAsync(token, projectId, ct)) { log(L.T("Vertex AI 권한: 확인됨")); return null; }
         if (string.IsNullOrEmpty(email))
-            return "계정 이메일을 확인할 수 없어 권한을 자동으로 추가하지 못했습니다.";
+            return L.T("계정 이메일을 확인할 수 없어 권한을 자동으로 추가하지 못했습니다.");
 
-        log($"Vertex AI 권한 추가 중 ({VertexRole} → {email})…");
+        log(L.F("Vertex AI 권한 추가 중 ({0} → {1})…", VertexRole, email));
         // Same command as install-windows.ps1.
         if (await RunWithTokenAsync(gcloud,
                 $"projects add-iam-policy-binding {projectId} --member=user:{email} --role={VertexRole} --condition=None",
                 token, log, ct) == 0)
             return await WaitForPermissionAsync(token, projectId, log, ct);
 
-        log("gcloud로 추가하지 못해 Resource Manager API로 다시 시도합니다…");
+        log(L.T("gcloud로 추가하지 못해 Resource Manager API로 다시 시도합니다…"));
         using var http = Http(token);
         var baseUrl = $"https://cloudresourcemanager.googleapis.com/v1/projects/{projectId}";
         var get = await SendAsync(http, HttpMethod.Post, baseUrl + ":getIamPolicy", new JsonObject(), ct);
         if (get.Status != 200 || get.Body is not JsonObject policy)
-            return $"프로젝트 권한 정보를 읽을 수 없습니다. 프로젝트 소유자에게 '{VertexRole}' 역할을 요청하세요. ({ErrorText(get)})";
+            return L.F("프로젝트 권한 정보를 읽을 수 없습니다. 프로젝트 소유자에게 '{0}' 역할을 요청하세요. ({1})", VertexRole, ErrorText(get));
 
         var member = "user:" + email;
         var bindings = policy["bindings"] as JsonArray ?? new JsonArray();
@@ -268,7 +268,7 @@ public static class GoogleSetup
 
         var set = await SendAsync(http, HttpMethod.Post, baseUrl + ":setIamPolicy", new JsonObject { ["policy"] = policy.DeepClone() }, ct);
         if (set.Status != 200)
-            return $"권한을 자동으로 추가할 수 없습니다. 프로젝트 소유자에게 '{VertexRole}'(Vertex AI 사용자) 역할을 요청하세요. ({ErrorText(set)})";
+            return L.F("권한을 자동으로 추가할 수 없습니다. 프로젝트 소유자에게 '{0}'(Vertex AI 사용자) 역할을 요청하세요. ({1})", VertexRole, ErrorText(set));
 
         return await WaitForPermissionAsync(token, projectId, log, ct);
     }
@@ -278,10 +278,10 @@ public static class GoogleSetup
         // IAM changes take a little while to propagate.
         for (var i = 0; i < 20; i++)
         {
-            if (await HasVertexPermissionAsync(token, projectId, ct)) { log("Vertex AI 권한: 추가 완료"); return null; }
+            if (await HasVertexPermissionAsync(token, projectId, ct)) { log(L.T("Vertex AI 권한: 추가 완료")); return null; }
             await Task.Delay(3000, ct);
         }
-        log("Vertex AI 권한: 추가했지만 아직 반영 중입니다 (몇 분 후 적용).");
+        log(L.T("Vertex AI 권한: 추가했지만 아직 반영 중입니다 (몇 분 후 적용)."));
         return null;
     }
 

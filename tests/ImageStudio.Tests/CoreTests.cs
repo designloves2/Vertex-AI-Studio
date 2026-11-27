@@ -181,3 +181,41 @@ public class ModelCatalogTests
     [InlineData("imagen-4.0-generate-001", "imagen-4.0-generate-001")]
     public void LabelShowsFriendlyNameAndId(string id, string expected) => Assert.Equal(expected, ModelCatalog.Label(id));
 }
+
+public class LocalizationTests
+{
+    static string SrcDir()
+    {
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !Directory.Exists(Path.Combine(d.FullName, "src", "ImageStudio.App"))) d = d.Parent;
+        return Path.Combine(d!.FullName, "src");
+    }
+
+    [Fact]
+    public void EveryKoreanUiStringHasAnEnglishTranslation()
+    {
+        var rx = new System.Text.RegularExpressions.Regex(@"L\.[TF]\(""((?:[^""\\]|\\.)*)""");
+        var missing = new List<string>();
+        foreach (var f in Directory.GetFiles(SrcDir(), "*.cs", SearchOption.AllDirectories))
+        {
+            if (f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") || f.EndsWith("L.En.cs")) continue;
+            foreach (System.Text.RegularExpressions.Match m in rx.Matches(File.ReadAllText(f)))
+            {
+                var key = System.Text.RegularExpressions.Regex.Unescape(m.Groups[1].Value);
+                if (!L.English.ContainsKey(key)) missing.Add($"{Path.GetFileName(f)}: {key}");
+            }
+        }
+        Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void EnglishModeTranslatesAndKoreanModeKeepsSource()
+    {
+        L.Init("en");
+        Assert.Equal("New conversation", L.T("새 대화"));
+        Assert.Equal("Downloading 42%", L.F("다운로드 {0}%", 42));
+        L.Init("ko");
+        Assert.Equal("새 대화", L.T("새 대화"));
+        L.Init("system");
+    }
+}

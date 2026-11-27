@@ -83,11 +83,11 @@ public sealed class ProxyHost : IDisposable
     public string? Start(ProxyConfig cfg)
     {
         if (IsRunning) return null;
-        if (ProxyDir == null) return "내장 프록시 파일(proxy\\index.js)을 찾을 수 없습니다.";
-        if (!Directory.Exists(Path.Combine(ProxyDir, "node_modules"))) return "내장 프록시의 node_modules가 없습니다 (proxy 폴더에서 npm ci 필요).";
+        if (ProxyDir == null) return L.T("내장 프록시 파일(proxy\\index.js)을 찾을 수 없습니다.");
+        if (!Directory.Exists(Path.Combine(ProxyDir, "node_modules"))) return L.T("내장 프록시의 node_modules가 없습니다 (proxy 폴더에서 npm ci 필요).");
         var node = NodePath;
-        if (node == null) return "node.exe를 찾을 수 없습니다.";
-        if (PortInUse(cfg.Port)) return $"포트 {cfg.Port}을(를) 이미 다른 프로그램이 쓰고 있습니다. 설정에서 포트를 바꾸세요.";
+        if (node == null) return L.T("node.exe를 찾을 수 없습니다.");
+        if (PortInUse(cfg.Port)) return L.F("포트 {0}을(를) 이미 다른 프로그램이 쓰고 있습니다. 설정에서 포트를 바꾸세요.", cfg.Port);
 
         var psi = new ProcessStartInfo(node, "index.js")
         {
@@ -109,15 +109,15 @@ public sealed class ProxyHost : IDisposable
         var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
         p.OutputDataReceived += (_, e) => { if (e.Data != null) Add(e.Data, false); };
         p.ErrorDataReceived += (_, e) => { if (e.Data != null) Add(e.Data, true); };
-        p.Exited += (_, _) => { if (_proc == p) { Add($"[프록시 종료됨, 코드 {SafeExit(p)}]", true); StateChanged?.Invoke(false); } };
+        p.Exited += (_, _) => { if (_proc == p) { Add(L.F("[프록시 종료됨, 코드 {0}]", SafeExit(p)), true); StateChanged?.Invoke(false); } };
         try { p.Start(); }
-        catch (Exception ex) { return "node 실행 실패: " + ex.Message; }
+        catch (Exception ex) { return L.T("node 실행 실패: ") + ex.Message; }
         AttachToJob(p);
         p.BeginOutputReadLine();
         p.BeginErrorReadLine();
         _proc = p;
         Port = cfg.Port;
-        Add($"[내장 프록시 시작: 포트 {cfg.Port}, 프로젝트 {cfg.ProjectId}, 리전 {cfg.Location}]", false);
+        Add(L.F("[내장 프록시 시작: 포트 {0}, 프로젝트 {1}, 리전 {2}]", cfg.Port, cfg.ProjectId, cfg.Location), false);
         StateChanged?.Invoke(true);
         return null;
     }

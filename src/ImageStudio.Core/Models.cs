@@ -3,7 +3,7 @@ namespace ImageStudio.Core;
 public sealed class Conversation
 {
     public string Id { get; set; } = NewId();
-    public string Title { get; set; } = "새 대화";
+    public string Title { get; set; } = L.T("새 대화");
     public string Model { get; set; } = ModelCatalog.DefaultImageModel;
     public long CreatedAt { get; set; } = Now();
     public long UpdatedAt { get; set; } = Now();

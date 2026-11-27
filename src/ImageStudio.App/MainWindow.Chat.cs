@@ -83,6 +83,17 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Narrow chat column: the top-bar dropdowns and the input toggles win over the secondary info.</summary>
+    void ChatArea_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var w = e.NewSize.Width;
+        var showContext = w >= 1050;
+        ContextText.Visibility = showContext ? Visibility.Visible : Visibility.Collapsed;
+        ContextBar.Visibility = showContext ? Visibility.Visible : Visibility.Collapsed;
+        CompactLabel.Visibility = w >= 820 ? Visibility.Visible : Visibility.Collapsed;
+        KeyHint.Visibility = w >= 820 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     void ScrollToEnd() => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
         () => MessagesScroll.ChangeView(null, MessagesScroll.ScrollableHeight, null, true));
 
@@ -110,7 +121,7 @@ public sealed partial class MainWindow
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Opacity = 0.85 };
             row.Children.Add(new FontIcon { Glyph = "", FontSize = 11, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) });
             row.Children.Add(Thumb(cont, 28, new List<ImageRef> { cont }));
-            row.Children.Add(new TextBlock { Text = "이 이미지로 계속", FontSize = 12, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new TextBlock { Text = L.T("이 이미지로 계속"), FontSize = 12, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), VerticalAlignment = VerticalAlignment.Center });
             stack.Children.Add(row);
         }
         if (!string.IsNullOrWhiteSpace(m.Enhanced))
@@ -118,13 +129,13 @@ public sealed partial class MainWindow
             var sep = new Border { Height = 1, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255)), Margin = new Thickness(0, 2, 0, 2) };
             stack.Children.Add(sep);
             var t = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.9, IsTextSelectionEnabled = true, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) };
-            t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = $"✨ 강화됨 ({_s.EnhanceModel}): ", FontWeight = FontWeights.SemiBold });
+            t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = L.F("✨ 강화됨 ({0}): ", _s.EnhanceModel), FontWeight = FontWeights.SemiBold });
             var full = m.Enhanced!;
             t.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = original && full.Length > 160 ? full[..160] + "…" : full });
             stack.Children.Add(t);
             var toggle = new HyperlinkButton
             {
-                Content = original ? "전체 보기" : "접기", Padding = new Thickness(0), FontSize = 12,
+                Content = original ? L.T("전체 보기") : L.T("접기"), Padding = new Thickness(0), FontSize = 12,
                 Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
             };
             toggle.Click += (_, _) => { _showOriginal[m.Id] = !original; ReplaceMessage(m); };
@@ -138,9 +149,9 @@ public sealed partial class MainWindow
             MaxWidth = BubbleMaxWidth(), Tag = "bubble",
         };
         var menu = new MenuFlyout();
-        menu.Items.Add(MenuItem("프롬프트 복사", "", () => SetClipboardText(m.Text)));
-        if (!string.IsNullOrWhiteSpace(m.Enhanced)) menu.Items.Add(MenuItem("강화된 프롬프트 복사", "", () => SetClipboardText(m.Enhanced!)));
-        menu.Items.Add(MenuItem("입력창으로 가져오기", "", () => { PromptBox.Text = m.Text; PromptBox.Focus(FocusState.Programmatic); }));
+        menu.Items.Add(MenuItem(L.T("프롬프트 복사"), "", () => SetClipboardText(m.Text)));
+        if (!string.IsNullOrWhiteSpace(m.Enhanced)) menu.Items.Add(MenuItem(L.T("강화된 프롬프트 복사"), "", () => SetClipboardText(m.Enhanced!)));
+        menu.Items.Add(MenuItem(L.T("입력창으로 가져오기"), "", () => { PromptBox.Text = m.Text; PromptBox.Focus(FocusState.Programmatic); }));
         bubble.ContextFlyout = menu;
         return bubble;
     }
@@ -149,12 +160,12 @@ public sealed partial class MainWindow
     {
         var stack = new StackPanel { Spacing = 6 };
         var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12 };
-        head.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "대화 압축됨", FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("WarnText") });
-        head.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = " — " + (m.SettingsLabel ?? "") + " · 이전 내용은 화면에 남아 있지만 요청에는 요약만 보냅니다" });
+        head.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = L.T("대화 압축됨"), FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("WarnText") });
+        head.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = " — " + (m.SettingsLabel ?? "") + L.T(" · 이전 내용은 화면에 남아 있지만 요청에는 요약만 보냅니다") });
         stack.Children.Add(head);
         var exp = new Expander
         {
-            Header = "요약 보기", HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+            Header = L.T("요약 보기"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
             Content = new TextBlock { Text = m.Text, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
         };
         stack.Children.Add(exp);
@@ -175,9 +186,9 @@ public sealed partial class MainWindow
     {
         var stack = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left, MaxWidth = Math.Min(980, ChatWidth()), Tag = "assistant" };
         var meta = $"{ModelCatalog.DisplayName(m.Model ?? "")}";
-        if (m.Status == MessageStatus.Pending) meta += " · 생성 중…";
-        else if (m.DurationMs is long ms) meta += ms == 0 ? " · 캐시된 결과" : $" · {ms / 1000.0:0.0}s";
-        meta += $" · 사고 수준 {ThinkingLabel(_s.Generation.Thinking)}";
+        if (m.Status == MessageStatus.Pending) meta += L.T(" · 생성 중…");
+        else if (m.DurationMs is long ms) meta += ms == 0 ? L.T(" · 캐시된 결과") : $" · {ms / 1000.0:0.0}s";
+        meta += L.F(" · 사고 수준 {0}", ThinkingLabel(_s.Generation.Thinking));
         stack.Children.Add(new TextBlock { Text = meta, Style = Res("SubText") });
 
         if (m.Status == MessageStatus.Pending)
@@ -190,8 +201,8 @@ public sealed partial class MainWindow
             };
             var inner = new StackPanel { Spacing = 10, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             inner.Children.Add(new ProgressRing { IsActive = true, Width = 28, Height = 28 });
-            inner.Children.Add(new TextBlock { Text = BusyText.Text is { Length: > 0 } b ? b : "생성 중…", Style = Res("SubText"), HorizontalAlignment = HorizontalAlignment.Center });
-            var cancel = new Button { Content = "■ 취소", HorizontalAlignment = HorizontalAlignment.Center };
+            inner.Children.Add(new TextBlock { Text = BusyText.Text is { Length: > 0 } b ? b : L.T("생성 중…"), Style = Res("SubText"), HorizontalAlignment = HorizontalAlignment.Center });
+            var cancel = new Button { Content = L.T("■ 취소"), HorizontalAlignment = HorizontalAlignment.Center };
             cancel.Click += Cancel_Click;
             inner.Children.Add(cancel);
             ph.Children.Add(inner);
@@ -206,10 +217,10 @@ public sealed partial class MainWindow
             {
                 IsOpen = true, IsClosable = false,
                 Severity = m.Status == MessageStatus.Error ? InfoBarSeverity.Error : InfoBarSeverity.Informational,
-                Title = m.Status == MessageStatus.Error ? "생성 실패" : "취소됨",
+                Title = m.Status == MessageStatus.Error ? L.T("생성 실패") : L.T("취소됨"),
                 Message = m.Error ?? "",
             };
-            var retry = new Button { Content = "↻ 다시 시도" };
+            var retry = new Button { Content = L.T("↻ 다시 시도") };
             retry.Click += async (_, _) => await RetryAsync(m);
             bar.ActionButton = retry;
             stack.Children.Add(bar);
@@ -219,7 +230,7 @@ public sealed partial class MainWindow
         if (!string.IsNullOrWhiteSpace(m.Thoughts))
             stack.Children.Add(new Expander
             {
-                Header = "생각 보기", HorizontalAlignment = HorizontalAlignment.Left, MaxWidth = 720,
+                Header = L.T("생각 보기"), HorizontalAlignment = HorizontalAlignment.Left, MaxWidth = 720,
                 Content = new TextBlock { Text = m.Thoughts, TextWrapping = TextWrapping.Wrap, Style = Res("SubText"), IsTextSelectionEnabled = true },
             });
 
@@ -228,7 +239,7 @@ public sealed partial class MainWindow
             {
                 IsOpen = true, IsClosable = true, Severity = InfoBarSeverity.Warning, MaxWidth = 720,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Title = "이 모델에 적용되지 않은 옵션", Message = m.Notes,
+                Title = L.T("이 모델에 적용되지 않은 옵션"), Message = m.Notes,
             });
 
         foreach (var img in m.Images)
@@ -243,7 +254,7 @@ public sealed partial class MainWindow
         return stack;
     }
 
-    static string ThinkingLabel(ThinkingLevel t) => t switch { ThinkingLevel.Low => "낮음", ThinkingLevel.High => "높음", _ => "중간" };
+    static string ThinkingLabel(ThinkingLevel t) => t switch { ThinkingLevel.Low => L.T("낮음"), ThinkingLevel.High => L.T("높음"), _ => L.T("중간") };
 
     UIElement ResultImage(ImageRef img, Message m)
     {
@@ -266,11 +277,11 @@ public sealed partial class MainWindow
     StackPanel ImageActions(ImageRef img, Message m)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        row.Children.Add(ActionButton("", "이걸로 계속", () => SetContinue(img)));
-        row.Children.Add(ActionButton("", "저장", async () => await SaveAs(img)));
-        row.Children.Add(ActionButton("", "복사", async () => await CopyImage(img)));
-        row.Children.Add(ActionButton("", "폴더", () => RevealInExplorer(img.ExportPath ?? img.Path)));
-        row.Children.Add(ActionButton("", "다시 생성", async () => await RegenerateAsync(m)));
+        row.Children.Add(ActionButton("", L.T("이걸로 계속"), () => SetContinue(img)));
+        row.Children.Add(ActionButton("", L.T("저장"), async () => await SaveAs(img)));
+        row.Children.Add(ActionButton("", L.T("복사"), async () => await CopyImage(img)));
+        row.Children.Add(ActionButton("", L.T("폴더"), () => RevealInExplorer(img.ExportPath ?? img.Path)));
+        row.Children.Add(ActionButton("", L.T("다시 생성"), async () => await RegenerateAsync(m)));
         return row;
     }
 
@@ -312,7 +323,7 @@ public sealed partial class MainWindow
         var tokens = StudioService.EstimateTokens(_msgs, _s.HistoryImageCount);
         var pct = Math.Min(100, tokens * 100.0 / Math.Max(1, _s.ContextTokenLimit));
         ContextBar.Value = pct;
-        ContextText.Text = $"컨텍스트 {pct:0}% · ~{tokens / 1000.0:0.#}K 토큰";
+        ContextText.Text = L.F("컨텍스트 {0:0}% · ~{1:0.#}K 토큰", pct, tokens / 1000.0);
         CompactButton.IsEnabled = HistoryBuilder.ActiveTurns(_msgs).Turns.Count >= 2 && _cts == null;
     }
 
@@ -328,22 +339,22 @@ public sealed partial class MainWindow
 
         var models = _imageModels.ToList();
         if (!models.Contains(g.Model)) models.Insert(0, g.Model);
-        ChipMenu("모델", ModelCatalog.DisplayName(g.Model),
+        ChipMenu(L.T("모델"), ModelCatalog.DisplayName(g.Model),
             models.Select(m => (ModelCatalog.Label(m), m == g.Model, (Action)(() => g.Model = m))));
 
-        ChipMenu("비율", g.AspectRatio == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : g.AspectRatio,
-            GenerationSettings.AspectRatios.Select(r => (r == "auto" ? $"자동 ({GenerationSettings.AutoAspectDefault})" : r, r == g.AspectRatio, (Action)(() => g.AspectRatio = r))));
+        ChipMenu(L.T("비율"), g.AspectRatio == "auto" ? L.F("자동 ({0})", GenerationSettings.AutoAspectDefault) : g.AspectRatio,
+            GenerationSettings.AspectRatios.Select(r => (r == "auto" ? L.F("자동 ({0})", GenerationSettings.AutoAspectDefault) : r, r == g.AspectRatio, (Action)(() => g.AspectRatio = r))));
 
-        ChipMenu("해상도", SizeLabel(g.Size),
+        ChipMenu(L.T("해상도"), SizeLabel(g.Size),
             new[] { ImageSize.K1, ImageSize.K2, ImageSize.K4 }.Select(z => (SizeLabel(z), z == g.Size, (Action)(() => g.Size = z))));
 
-        ChipMenu("형식", g.Format == OutputFormat.Jpeg ? "JPEG" : "PNG",
+        ChipMenu(L.T("형식"), g.Format == OutputFormat.Jpeg ? "JPEG" : "PNG",
             new[] { (OutputFormat.Png, "PNG"), (OutputFormat.Jpeg, "JPEG") }.Select(f => (f.Item2, f.Item1 == g.Format, (Action)(() => g.Format = f.Item1))));
 
-        ChipMenu("✨ 인핸스", _s.EnhanceEnabled ? "ON" : "OFF",
-            new[] { (true, "켜기"), (false, "끄기") }.Select(o => (o.Item2, o.Item1 == _s.EnhanceEnabled, (Action)(() => _s.EnhanceEnabled = o.Item1))));
+        ChipMenu(L.T("✨ 인핸스"), _s.EnhanceEnabled ? "ON" : "OFF",
+            new[] { (true, L.T("켜기")), (false, L.T("끄기")) }.Select(o => (o.Item2, o.Item1 == _s.EnhanceEnabled, (Action)(() => _s.EnhanceEnabled = o.Item1))));
 
-        if (g.GoogleSearch) ChipStatic("🔍 검색", "ON");
+        if (g.GoogleSearch) ChipStatic(L.T("🔍 검색"), "ON");
     }
 
     static string SizeLabel(ImageSize z) => z switch { ImageSize.K1 => "1K", ImageSize.K4 => "4K", _ => "2K" };
@@ -390,8 +401,8 @@ public sealed partial class MainWindow
     }
 
     void UpdateKeyHint() => KeyHint.Text = _s.SendKey == SendKey.Enter
-        ? "Enter 전송 · Ctrl+Enter 줄바꿈"
-        : "Ctrl+Enter 전송 · Enter 줄바꿈";
+        ? L.T("Enter 전송 · Ctrl+Enter 줄바꿈")
+        : L.T("Ctrl+Enter 전송 · Enter 줄바꿈");
 
     void QuickToggle_Toggled(object sender, RoutedEventArgs e)
     {
@@ -453,7 +464,7 @@ public sealed partial class MainWindow
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = "참조 이미지로 첨부";
+            e.DragUIOverride.Caption = L.T("참조 이미지로 첨부");
         }
     }
 
@@ -474,7 +485,7 @@ public sealed partial class MainWindow
                 var (b, mime) = await ImageUtil.NormalizeAsync(bytes);
                 AddAttachment(b, mime);
             }
-            catch (Exception ex) { ShowBanner("첨부 실패", ex.Message, InfoBarSeverity.Error); }
+            catch (Exception ex) { ShowBanner(L.T("첨부 실패"), ex.Message, InfoBarSeverity.Error); }
         }
     }
 
@@ -491,7 +502,7 @@ public sealed partial class MainWindow
     {
         if (ModelCatalog.IsImagen(_s.Generation.Model))
         {
-            ShowBanner("첨부 불가", "Imagen은 단발 생성 모델이라 참조 이미지를 쓸 수 없습니다.", InfoBarSeverity.Informational);
+            ShowBanner(L.T("첨부 불가"), L.T("Imagen은 단발 생성 모델이라 참조 이미지를 쓸 수 없습니다."), InfoBarSeverity.Informational);
             return;
         }
         _attachments.Add((bytes, mime));
@@ -593,7 +604,7 @@ public sealed partial class MainWindow
     {
         if (_conv == null) return;
         _cts = new CancellationTokenSource();
-        SetBusy("요청 준비 중…");
+        SetBusy(L.T("요청 준비 중…"));
         RenderMessages();
         try
         {
@@ -650,11 +661,11 @@ public sealed partial class MainWindow
         if (_cts != null || _conv == null) return;
         if (HistoryBuilder.ActiveTurns(_msgs).Turns.Count < 2)
         {
-            ShowBanner("압축할 내용이 없습니다", "대화가 2턴 이상일 때 압축할 수 있습니다.", InfoBarSeverity.Informational);
+            ShowBanner(L.T("압축할 내용이 없습니다"), L.T("대화가 2턴 이상일 때 압축할 수 있습니다."), InfoBarSeverity.Informational);
             return;
         }
         _cts = new CancellationTokenSource();
-        SetBusy(auto ? "컨텍스트가 커져 자동 압축 중…" : "대화 압축 중…");
+        SetBusy(auto ? L.T("컨텍스트가 커져 자동 압축 중…") : L.T("대화 압축 중…"));
         try
         {
             await _svc.CompactAsync(_conv, _msgs, keepImages: 2, ct: _cts.Token);
@@ -662,7 +673,7 @@ public sealed partial class MainWindow
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            ShowBanner("압축 실패", ex is ProxyException pe ? pe.UserMessage : ex.Message, InfoBarSeverity.Error);
+            ShowBanner(L.T("압축 실패"), ex is ProxyException pe ? pe.UserMessage : ex.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -737,7 +748,7 @@ public sealed partial class MainWindow
     {
         var img = _previewList[_previewIdx];
         PreviewImage.Source = new BitmapImage(new Uri(img.Path));
-        PreviewInfo.Text = $"{_previewIdx + 1} / {_previewList.Count} · {img.Width}×{img.Height} · {img.Mime} · 휠: 확대/축소 · 드래그: 이동 · 더블클릭: 화면 맞춤";
+        PreviewInfo.Text = L.F("{0} / {1} · {2}×{3} · {4} · 휠: 확대/축소 · 드래그: 이동 · 더블클릭: 화면 맞춤", _previewIdx + 1, _previewList.Count, img.Width, img.Height, img.Mime);
     }
 
     // ---- preview mouse: wheel = zoom at cursor, left-drag = pan, double-click = fit ----

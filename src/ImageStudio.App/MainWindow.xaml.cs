@@ -28,6 +28,10 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         _s = AppSettings.Load(_paths.Settings);
+        L.Init(_s.Language);
+        Localizer.Apply(Content);
+        VersionText.Text = "V." + _updater.CurrentVersion;
+        Title = $"Vertex AI Studio Image V.{_updater.CurrentVersion}";
         _store = new Store(_paths);
         _client = new ProxyClient(_s.EffectiveProxyUrl, _s.TimeoutSeconds);
         _svc = new StudioService(_store, () => _s, () => _client);
@@ -74,30 +78,39 @@ public sealed partial class MainWindow : Window
         if (_s.AutoCheckUpdates) _ = CheckForUpdateAsync(silent: true);
     }
 
+    /// <summary>Starts a new instance of the app and closes this one (language change).</summary>
+    async void RestartApp()
+    {
+        SaveSettings();
+        await _proxy.StopAsync();   // free port 3001 before the new instance starts its proxy
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true }); } catch { return; }
+        Close();
+    }
+
     // ---------------- auto-update ----------------
 
     /// <summary>Checks GitHub Releases; when a newer version exists, offers it in the banner.</summary>
     async Task<string> CheckForUpdateAsync(bool silent)
     {
         if (!_updater.IsInstalled)
-            return "개발 빌드라 자동 업데이트를 쓸 수 없습니다 (설치 파일로 설치한 앱만 업데이트됨).";
+            return L.T("개발 빌드라 자동 업데이트를 쓸 수 없습니다 (설치 파일로 설치한 앱만 업데이트됨).");
         try
         {
             var ver = await _updater.CheckAsync();
-            if (ver == null) return $"최신 버전입니다 ({_updater.CurrentVersion}).";
-            Banner.Title = $"새 버전 {ver} 이(가) 있습니다";
-            Banner.Message = $"현재 {_updater.CurrentVersion}. 업데이트하면 앱이 다시 시작됩니다 (대화와 설정은 유지).";
+            if (ver == null) return L.F("최신 버전입니다 ({0}).", _updater.CurrentVersion);
+            Banner.Title = L.F("새 버전 {0} 이(가) 있습니다", ver);
+            Banner.Message = L.F("현재 {0}. 업데이트하면 앱이 다시 시작됩니다 (대화와 설정은 유지).", _updater.CurrentVersion);
             Banner.Severity = InfoBarSeverity.Informational;
-            var btn = new Button { Content = "업데이트 후 재시작" };
+            var btn = new Button { Content = L.T("업데이트 후 재시작") };
             btn.Click += async (_, _) => await ApplyUpdateAsync(btn);
             Banner.ActionButton = btn;
             Banner.IsOpen = true;
-            return $"새 버전 {ver} 이(가) 있습니다.";
+            return L.F("새 버전 {0} 이(가) 있습니다.", ver);
         }
         catch (Exception ex)
         {
-            var msg = "업데이트 확인 실패: " + ex.Message;
-            if (!silent) ShowBanner("업데이트 확인 실패", ex.Message, InfoBarSeverity.Warning);
+            var msg = L.T("업데이트 확인 실패: ") + ex.Message;
+            if (!silent) ShowBanner(L.T("업데이트 확인 실패"), ex.Message, InfoBarSeverity.Warning);
             return msg;
         }
     }
@@ -106,21 +119,21 @@ public sealed partial class MainWindow : Window
     {
         if (_cts != null)
         {
-            ShowBanner("생성 중에는 업데이트할 수 없습니다", "작업이 끝난 뒤 다시 눌러 주세요.", InfoBarSeverity.Warning);
+            ShowBanner(L.T("생성 중에는 업데이트할 수 없습니다"), L.T("작업이 끝난 뒤 다시 눌러 주세요."), InfoBarSeverity.Warning);
             return;
         }
         btn.IsEnabled = false;
         try
         {
-            await _updater.DownloadAsync(p => DispatcherQueue.TryEnqueue(() => btn.Content = $"다운로드 {p}%"));
+            await _updater.DownloadAsync(p => DispatcherQueue.TryEnqueue(() => btn.Content = L.F("다운로드 {0}%", p)));
             SaveSettings();
             _updater.ApplyAndRestart();
         }
         catch (Exception ex)
         {
             btn.IsEnabled = true;
-            btn.Content = "업데이트 후 재시작";
-            ShowBanner("업데이트 실패", ex.Message, InfoBarSeverity.Error);
+            btn.Content = L.T("업데이트 후 재시작");
+            ShowBanner(L.T("업데이트 실패"), ex.Message, InfoBarSeverity.Error);
         }
     }
 
@@ -176,18 +189,23 @@ public sealed partial class MainWindow : Window
         catch { ok = false; }
 
         var host = new Uri(_s.EffectiveProxyUrl).Authority;
-        var kind = _s.UseEmbeddedProxy ? "내장 프록시" : "Proxy";
+        var kind = _s.UseEmbeddedProxy ? L.T("내장 프록시") : "Proxy";
         ProxyDot.Fill = new SolidColorBrush(ok ? Windows.UI.Color.FromArgb(255, 0x6C, 0xCB, 0x5F) : Windows.UI.Color.FromArgb(255, 0xE8, 0x4A, 0x4A));
-        ProxyText.Text = ok ? $"{kind} {host} · {_s.Generation.Region}" : $"{kind} {host} · 연결 안 됨";
+        ProxyText.Text = ok ? $"{kind} {host} · {_s.Generation.Region}" : L.F("{0} {1} · 연결 안 됨", kind, host);
         if (!ok && SetupPage.Visibility != Visibility.Visible)
-            ShowBanner("프록시에 연결할 수 없습니다",
-                _s.UseEmbeddedProxy ? "내장 프록시가 실행되지 않았습니다. 설정 › 내장 프록시에서 상태와 로그를 확인하세요."
-                                    : "Vertex OpenAI Proxy 앱을 실행하세요. (" + _s.ProxyUrl + ")", InfoBarSeverity.Warning);
-        else if (Banner.IsOpen && Banner.Title.StartsWith("프록시")) Banner.IsOpen = false;
+            _proxyBannerShown = ShowBannerTracked(L.T("프록시에 연결할 수 없습니다"),
+                _s.UseEmbeddedProxy ? L.T("내장 프록시가 실행되지 않았습니다. 설정 › 내장 프록시에서 상태와 로그를 확인하세요.")
+                                    : L.T("Vertex OpenAI Proxy 앱을 실행하세요. (") + _s.ProxyUrl + ")", InfoBarSeverity.Warning);
+        else if (Banner.IsOpen && _proxyBannerShown) { Banner.IsOpen = false; _proxyBannerShown = false; }
     }
+
+    bool _proxyBannerShown;
+
+    bool ShowBannerTracked(string title, string message, InfoBarSeverity sev) { ShowBanner(title, message, sev); return true; }
 
     void ShowBanner(string title, string message, InfoBarSeverity sev)
     {
+        _proxyBannerShown = false;
         Banner.ActionButton = null;
         Banner.Title = title;
         Banner.Message = message;
@@ -248,7 +266,7 @@ public sealed partial class MainWindow : Window
         var list = _store.ListConversations(SearchBox.Text, _trashMode);
         if (_trashMode)
         {
-            items.Add(GroupHeader("휴지통 · 30일 후 영구 삭제"));
+            items.Add(GroupHeader(L.T("휴지통 · 30일 후 영구 삭제")));
             foreach (var c in list) items.Add(ConversationItem(c));
         }
         else
@@ -264,18 +282,18 @@ public sealed partial class MainWindow : Window
             }
         }
         var trash = _store.TrashCount();
-        TrashText.Text = _trashMode ? "← 대화 목록으로" : $"휴지통 ({trash})";
+        TrashText.Text = _trashMode ? L.T("← 대화 목록으로") : L.F("휴지통 ({0})", trash);
     }
 
     static string GroupOf(long ms)
     {
         var d = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime.Date;
         var today = DateTime.Today;
-        if (d == today) return "오늘";
-        if (d == today.AddDays(-1)) return "어제";
-        if (d > today.AddDays(-7)) return "지난 7일";
-        if (d > today.AddDays(-30)) return "지난 30일";
-        return d.ToString("yyyy년 M월");
+        if (d == today) return L.T("오늘");
+        if (d == today.AddDays(-1)) return L.T("어제");
+        if (d > today.AddDays(-7)) return L.T("지난 7일");
+        if (d > today.AddDays(-30)) return L.T("지난 30일");
+        return d.ToString(L.T("yyyy년 M월"));
     }
 
     static ListViewItem GroupHeader(string text) => new()
@@ -298,10 +316,10 @@ public sealed partial class MainWindow : Window
         var menu = new MenuFlyout();
         if (_trashMode)
         {
-            menu.Items.Add(MenuItem("복원", "", () => { _store.RestoreConversation(c.Id); RefreshConversationList(); }));
-            menu.Items.Add(MenuItem("영구 삭제", "", async () =>
+            menu.Items.Add(MenuItem(L.T("복원"), "", () => { _store.RestoreConversation(c.Id); RefreshConversationList(); }));
+            menu.Items.Add(MenuItem(L.T("영구 삭제"), "", async () =>
             {
-                if (await Confirm("영구 삭제", $"\"{c.Title}\" 대화와 이미지를 영구 삭제합니다. 되돌릴 수 없습니다.", "삭제"))
+                if (await Confirm(L.T("영구 삭제"), L.F("\"{0}\" 대화와 이미지를 영구 삭제합니다. 되돌릴 수 없습니다.", c.Title), L.T("삭제")))
                 {
                     c.DeletedAt = 0; _store.SaveConversation(c); _store.PurgeTrash(all: true); RefreshConversationList();
                 }
@@ -309,8 +327,8 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            menu.Items.Add(MenuItem("이름 변경", "", async () => await RenameConversation(c)));
-            menu.Items.Add(MenuItem("휴지통으로 이동", "", () =>
+            menu.Items.Add(MenuItem(L.T("이름 변경"), "", async () => await RenameConversation(c)));
+            menu.Items.Add(MenuItem(L.T("휴지통으로 이동"), "", () =>
             {
                 _store.TrashConversation(c.Id);
                 if (_conv?.Id == c.Id) ShowConversation(null);
@@ -333,7 +351,7 @@ public sealed partial class MainWindow : Window
         var box = new TextBox { Text = c.Title, SelectionStart = 0, SelectionLength = c.Title.Length };
         var dlg = new ContentDialog
         {
-            Title = "이름 변경", Content = box, PrimaryButtonText = "저장", CloseButtonText = "취소",
+            Title = L.T("이름 변경"), Content = box, PrimaryButtonText = L.T("저장"), CloseButtonText = L.T("취소"),
             DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot,
         };
         if (await dlg.ShowAsync() == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(box.Text))
@@ -348,7 +366,7 @@ public sealed partial class MainWindow : Window
     {
         var dlg = new ContentDialog
         {
-            Title = title, Content = text, PrimaryButtonText = ok, CloseButtonText = "취소",
+            Title = title, Content = text, PrimaryButtonText = ok, CloseButtonText = L.T("취소"),
             DefaultButton = ContentDialogButton.Close, XamlRoot = Content.XamlRoot,
         };
         return await dlg.ShowAsync() == ContentDialogResult.Primary;
@@ -387,7 +405,7 @@ public sealed partial class MainWindow : Window
         foreach (var m in _msgs.Where(m => m.Status == MessageStatus.Pending))
         {
             m.Status = MessageStatus.Cancelled;
-            m.Error = "앱이 종료되어 중단됨";
+            m.Error = L.T("앱이 종료되어 중단됨");
             _store.SaveMessage(m);
         }
         _s.LastConversationId = c.Id;

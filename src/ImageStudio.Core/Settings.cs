@@ -80,6 +80,9 @@ public sealed class AppSettings
 
     public bool AutoCheckUpdates { get; set; } = true;
 
+    /// <summary>"system" (Korean if Windows is Korean, else English), "ko" or "en". Applied at startup.</summary>
+    public string Language { get; set; } = "system";
+
     public bool SessionListCollapsed { get; set; }
     public bool SettingsPanelCollapsed { get; set; }
     public string? LastConversationId { get; set; }
