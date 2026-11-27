@@ -60,7 +60,7 @@ public sealed partial class MainWindow
     {
         if (_proxy.IsRunning) return true;
         ProxyText.Text = L.T("내장 프록시 시작 중…");
-        var err = _proxy.Start(CurrentProxyConfig());
+        var err = await _proxy.StartAsync(CurrentProxyConfig());
         if (err != null)
         {
             ShowBanner(L.T("내장 프록시를 시작할 수 없습니다"), err, InfoBarSeverity.Error);

@@ -266,6 +266,8 @@ public static partial class L
         ["내장 프록시 파일(proxy\\index.js)을 찾을 수 없습니다."] = "Embedded proxy files (proxy\\index.js) not found.",
         ["내장 프록시의 node_modules가 없습니다 (proxy 폴더에서 npm ci 필요)."] = "The embedded proxy has no node_modules (run npm ci in the proxy folder).",
         ["node.exe를 찾을 수 없습니다."] = "node.exe not found.",
+        ["포트 {0}을(를) 다른 프로그램({1}, PID {2})이 쓰고 있습니다. 그 프로그램을 끄거나 설정에서 포트를 바꾸세요."] = "Port {0} is used by another program ({1}, PID {2}). Close it or change the port in Settings.",
+        ["[포트 {0}에 남아 있던 프록시(node, PID {1})를 종료합니다]"] = "[Stopping the proxy left on port {0} (node, PID {1})]",
         ["포트 {0}을(를) 이미 다른 프로그램이 쓰고 있습니다. 설정에서 포트를 바꾸세요."] = "Port {0} is already used by another program. Change the port in Settings.",
         ["[프록시 종료됨, 코드 {0}]"] = "[Proxy exited, code {0}]",
         ["node 실행 실패: "] = "Failed to start node:",

@@ -80,6 +80,51 @@ public sealed class ProxyHost : IDisposable
     }
 
     /// <summary>Starts the proxy; returns an error message, or null on success.</summary>
+    /// <summary>
+    /// Frees the port before starting: a proxy left over from an earlier run (any node.exe listening there,
+    /// e.g. after a crash or a forced update) is killed. Any other program is left alone and reported.
+    /// </summary>
+    public async Task<string?> StartAsync(ProxyConfig cfg)
+    {
+        if (!IsRunning && PortInUse(cfg.Port) && ListeningProcess(cfg.Port) is Process other)
+        {
+            using (other)
+            {
+                var name = SafeName(other);
+                if (!name.Equals("node", StringComparison.OrdinalIgnoreCase))
+                    return L.F("포트 {0}을(를) 다른 프로그램({1}, PID {2})이 쓰고 있습니다. 그 프로그램을 끄거나 설정에서 포트를 바꾸세요.", cfg.Port, name, other.Id);
+                Add(L.F("[포트 {0}에 남아 있던 프록시(node, PID {1})를 종료합니다]", cfg.Port, other.Id), false);
+                try { other.Kill(entireProcessTree: true); await other.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
+            }
+            for (var i = 0; i < 40 && PortInUse(cfg.Port); i++) await Task.Delay(150);
+        }
+        return Start(cfg);
+    }
+
+    static string SafeName(Process p) { try { return p.ProcessName; } catch { return "?"; } }
+
+    /// <summary>Process listening on 127.0.0.1/0.0.0.0/[::]:port (from `netstat -ano`), or null.</summary>
+    public static Process? ListeningProcess(int port)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("netstat", "-ano -p tcp") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+            using var ns = Process.Start(psi)!;
+            var text = ns.StandardOutput.ReadToEnd();
+            ns.WaitForExit(5000);
+            foreach (var line in text.Split('\n'))
+            {
+                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                // Proto  Local  Foreign  State  PID
+                if (parts.Length < 5 || !parts[0].Equals("TCP", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!parts[1].EndsWith(":" + port) || !parts[3].Equals("LISTENING", StringComparison.OrdinalIgnoreCase)) continue;
+                if (int.TryParse(parts[4], out var pid) && pid > 0) return Process.GetProcessById(pid);
+            }
+        }
+        catch { }
+        return null;
+    }
+
     public string? Start(ProxyConfig cfg)
     {
         if (IsRunning) return null;

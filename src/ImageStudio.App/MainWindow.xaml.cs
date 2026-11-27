@@ -48,7 +48,7 @@ public sealed partial class MainWindow : Window
         GearButton.SizeChanged += (_, _) => UpdateTitleBarRegions();
         PanelToggleButton.SizeChanged += (_, _) => UpdateTitleBarRegions();
         Activated += (_, _) => UpdateTitleBarRegions();
-        Closed += (_, _) => { SaveSettings(); _proxy.Dispose(); _store.Dispose(); };
+        Closed += (_, _) => { _closed = true; SaveSettings(); _proxy.Dispose(); _store.Dispose(); };
 
         var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
@@ -76,6 +76,20 @@ public sealed partial class MainWindow : Window
         _proxyTimer.Start();
         _ = StartupProxyAsync();
         if (_s.AutoCheckUpdates) _ = CheckForUpdateAsync(silent: true);
+        Program.ListenForShowRequests(() => DispatcherQueue.TryEnqueue(BringToFront));
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    /// <summary>A second launch was attempted: show this window instead.</summary>
+    void BringToFront()
+    {
+        if (_closed) return;
+        if (AppWindow.Presenter is OverlappedPresenter p && p.State == OverlappedPresenterState.Minimized) p.Restore();
+        AppWindow.Show();
+        Activate();
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
     }
 
     /// <summary>Starts a new instance of the app and closes this one (language change).</summary>
@@ -83,6 +97,7 @@ public sealed partial class MainWindow : Window
     {
         SaveSettings();
         await _proxy.StopAsync();   // free port 3001 before the new instance starts its proxy
+        Program.ReleaseSingleInstance();
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true }); } catch { return; }
         Close();
     }
@@ -142,9 +157,13 @@ public sealed partial class MainWindow : Window
 
     // ---------------- title bar ----------------
 
+    bool _closed;
+
     void UpdateTitleBarRegions()
     {
-        if (AppWindow == null || Content?.XamlRoot == null) return;
+        // Activated can still fire while the window is closing; Content then throws.
+        if (_closed || AppWindow == null) return;
+        try { if (Content?.XamlRoot == null) return; } catch { return; }
         var scale = Content.XamlRoot.RasterizationScale;
         var rects = new List<RectInt32>();
         foreach (FrameworkElement el in new FrameworkElement[] { GearButton, PanelToggleButton })
